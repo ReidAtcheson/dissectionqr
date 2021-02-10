@@ -18,19 +18,22 @@ pub trait NodeSet {
 ///Edges in this graph (which may be implicit and not necessarily stored in memory) 
 ///represent nonzero entries in a sparse matrix
 pub trait Graph<S : NodeSet>{
-    ///Gets the largest nodeset this graph is defined on
-    fn superset(&self) -> S;
-    ///Determines if `s1` is reachable from `s2` using edges from this graph
-    fn reachable(&self,s1 : S,s2 : S) -> bool;
     ///Determines if `s1` is reachable from `s2` by a path of length `len` using edges from this
     ///graph
     fn reachable_len(&self,s1 : S,s2 : S,len : usize) -> bool;
-    ///Split an input nodeset into three nodesets: two partitions and a separator such that the two partitions 
-    ///are not reachable from each other.
-    fn split(&self, s : S) -> (S,S,S);
+    ///Determines if `s1` is reachable from `s2` using edges from this graph
+    fn reachable(&self,s1 : S,s2 : S) -> bool{
+        self.reachable_len(s1,s2,1)
+    }
     ///Split an input nodeset into three nodesets: two partitions and a separator such that the two
     ///partitions are not reachable by a specified path length `len`
-    fn split_len(&self,s : S,len : usize) -> (S,S,S);
+    fn split_len(&self,s : S,len : usize) -> Option<(S,S,S)>;
+
+    ///Split an input nodeset into three nodesets: two partitions and a separator such that the two partitions 
+    ///are not reachable from each other.
+    fn split(&self, s : S) -> Option<(S,S,S)>{
+        self.split_len(s,1)
+    }
 }
 
 ///Defines basic sparse matrix. Indexed on nodes from a `NodeSet` and nonzero entries

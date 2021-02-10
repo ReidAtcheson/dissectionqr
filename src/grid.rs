@@ -16,7 +16,11 @@ pub struct Stencil1D{
     pub offsets : Vec<i64>
 }
 
-
+impl Grid1D{
+    fn isvalid(&self) -> bool {
+        self.beg<self.end
+    }
+}
 
 impl NodeSet for Grid1D{
     fn contains(&self,i : i64) -> bool {
@@ -32,6 +36,49 @@ impl NodeSet for Grid1D{
     fn nnodes(&self) -> usize {
         (self.end-self.beg) as usize
     }
+}
+
+impl Graph<Grid1D> for Stencil1D{
+    fn reachable(&self,s1 : Grid1D ,s2 : Grid1D) -> bool{
+        let offsets = &self.offsets;
+        //Expand input grids by stencil offsets
+        let max_offs=match offsets.iter().max() {
+            Some(x) => x,
+            None => panic!()
+        };
+        let min_offs=match offsets.iter().min() {
+            Some(x) => x,
+            None => panic!()
+        };
+        let g1 = Grid1D{ beg : s1.beg + min_offs, end : s1.end + max_offs};
+        let g2 = Grid1D{ beg : s2.beg + min_offs, end : s2.end + max_offs};
+        //If intersection is nonempty, sets are reachable
+        !g1.disjoint(g2)
+    }
+    fn reachable_len(&self,s1 : Grid1D,s2 : Grid1D,len : usize) -> bool{
+        let slen = len as i64;
+        let offsets = &self.offsets;
+        //Expand input grids by stencil offsets
+        let max_offs=match offsets.iter().max() {
+            Some(x) => x,
+            None => panic!()
+        };
+        let min_offs=match offsets.iter().min() {
+            Some(x) => x,
+            None => panic!()
+        };
+        let g1 = Grid1D{ beg : s1.beg + slen*min_offs, end : s1.end + slen*max_offs};
+        let g2 = Grid1D{ beg : s2.beg + slen*min_offs, end : s2.end + slen*max_offs};
+        //If intersection is nonempty, sets are reachable
+        !g1.disjoint(g2)
+    }
+    fn split_len(&self,s : Grid1D,len : usize) -> Option<(Grid1D,Grid1D,Grid1D)>{
+        let slen = len as i64;
+        let max_offs=self.offsets.iter().max().unwrap();
+        let min_offs=self.offsets.iter().min().unwrap();
+        None
+    }
+
 }
 
 #[cfg(test)]

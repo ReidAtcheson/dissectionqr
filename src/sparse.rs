@@ -7,7 +7,7 @@ pub trait NodeSet {
     ///Determines if an input node, represented as an integer is contained in this nodeset
     fn contains(&self,i : i64) -> bool;
     ///Determines if input nodeset is disjoint from this nodeset
-    fn disjoint(&self,s : Self) -> bool;
+    fn disjoint(&self,s : &Self) -> bool;
     ///Represents this nodeset as vector of integers
     fn enumerate(&self) -> Vec<i64>;
     ///Gives number of nodes contained in this nodeset
@@ -17,21 +17,26 @@ pub trait NodeSet {
 ///Defines the sparsity pattern for a matrix
 ///Edges in this graph (which may be implicit and not necessarily stored in memory) 
 ///represent nonzero entries in a sparse matrix
-pub trait Graph<S : NodeSet>{
+pub trait Graph<S : NodeSet>
+{
+
+    fn reachable_len_oneway(&self, s1 : &S, s2 : &S, len : usize) -> bool;
     ///Determines if `s1` is reachable from `s2` by a path of length `len` using edges from this
-    ///graph
-    fn reachable_len(&self,s1 : S,s2 : S,len : usize) -> bool;
+    ///graph and vice-versa
+    fn reachable_len(&self,s1 : &S,s2 : &S,len : usize) -> bool{
+        self.reachable_len_oneway(s1,s2,len) && self.reachable_len_oneway(s2,s1,len)
+    }
     ///Determines if `s1` is reachable from `s2` using edges from this graph
-    fn reachable(&self,s1 : S,s2 : S) -> bool{
+    fn reachable(&self,s1 : &S,s2 : &S) -> bool{
         self.reachable_len(s1,s2,1)
     }
     ///Split an input nodeset into three nodesets: two partitions and a separator such that the two
     ///partitions are not reachable by a specified path length `len`
-    fn split_len(&self,s : S,len : usize) -> Option<(S,S,S)>;
+    fn split_len(&self,s : &S,len : usize) -> Option<(S,S,S)>;
 
     ///Split an input nodeset into three nodesets: two partitions and a separator such that the two partitions 
     ///are not reachable from each other.
-    fn split(&self, s : S) -> Option<(S,S,S)>{
+    fn split(&self, s : &S) -> Option<(S,S,S)>{
         self.split_len(s,1)
     }
 }
@@ -43,7 +48,7 @@ pub trait SparseMatrix<F, S : NodeSet, G : Graph<S>>{
     ///from this sparse matrix into a _dense_ matrix. 
     ///This is used for assembling supernodes on a nested dissection tree,
     ///not for true sparse matrix assembly.
-    fn assemble(&self,rows : S,cols : S) -> Array<F,Ix2>;
+    fn assemble(&self,rows : &S,cols : &S) -> Array<F,Ix2>;
 }
 
 

@@ -57,12 +57,16 @@ impl Graph<Grid1D> for Stencil1D{
         let nnodes = s.nnodes() as i64;
         let g1 = Grid1D{ beg : s.beg, end : s.beg + nnodes/2 -slen*m};
         let g2 = Grid1D{ beg : nnodes/2, end : s.end};
-        let sep = Grid1D{ beg : s.beg + nnodes/2 - slen*m, end : nnodes/2};
+        let sep = Grid1D{ beg : nnodes/2 - slen*m, end : nnodes/2};
 
         if g1.isvalid() && g2.isvalid() && sep.isvalid(){
             Some((sep,g1,g2))
         }
         else{
+            print!("\n{:?}\n",self);
+            print!("\n{:?}\n",g1);
+            print!("\n{:?}\n",g2);
+            print!("\n{:?}\n",sep);
             None
         }
 
@@ -148,6 +152,14 @@ mod tests {
         let _ = sv.iter().map(|z|y.insert(*z));
 
         assert!(x==y)
+    }
+
+    #[test]
+    fn stencil1d_split_nonzero_start(){
+        let s = Grid1D{ beg : 50,end : 100};
+        let g = Stencil1D{ offsets : vec![-1,0,1] };
+        let res = g.split_len(&s,3);
+        assert!( res != None );
     }
 
 

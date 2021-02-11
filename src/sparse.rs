@@ -2,6 +2,7 @@
 use ndarray::prelude::Ix2;
 use ndarray::Array;
 
+
 ///A generic set of nodes with the minimal functions necessary for sparse matrix manipulation
 pub trait NodeSet {
     ///Determines if an input node, represented as an integer is contained in this nodeset

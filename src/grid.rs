@@ -1,5 +1,6 @@
-
 use crate::sparse::*;
+
+
 ///Set of nodes defined implicitly as all integers between
 ///`beg` and `end` not including `end`
 #[derive(Eq,PartialEq,Ord,PartialOrd,Clone,Copy,Hash,Debug)]
@@ -76,7 +77,6 @@ impl Graph<Grid1D> for Stencil1D{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeSet;
     //Sanity check that checks that an enumerated nodeset contains all its nodes
     fn nodeset_enumerate_all_in<S : NodeSet>(s : S){
         let nodes = s.enumerate();

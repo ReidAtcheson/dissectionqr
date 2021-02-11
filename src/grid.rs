@@ -29,6 +29,9 @@ impl NodeSet for Grid1D{
     fn disjoint(&self,s : &Self) -> bool {
         self.beg>=s.end || s.beg>=self.end
     }
+    fn subset(&self,s : &Self) -> bool {
+        self.beg>=s.beg && self.end<=s.end
+    }
     fn enumerate(&self) -> Vec<i64> {
         let out = (self.beg..self.end).collect::<Vec<i64>>();
         out
@@ -134,20 +137,12 @@ mod tests {
         let g = Stencil1D{ offsets : vec![-1,0,1] };
         let (sep,p1,p2) = g.split_len(&s,3).unwrap();
 
-        let sepv = sep.enumerate();
-        let p1v = p1.enumerate();
-        let p2v = p2.enumerate();
+        assert!(p1.subset(&s));
+        assert!(p2.subset(&s));
+        assert!(sep.subset(&s));
 
-        let sv = s.enumerate();
+        assert_eq!(p1.nnodes()+p2.nnodes()+sep.nnodes(),s.nnodes());
 
-        let mut x = BTreeSet::<i64>::new();
-        let mut y = BTreeSet::<i64>::new();
-        let _ = sepv.iter().map(|z|x.insert(*z));
-        let _ = p1v.iter().map(|z|x.insert(*z));
-        let _ = p2v.iter().map(|z|x.insert(*z));
-        let _ = sv.iter().map(|z|y.insert(*z));
-
-        assert!(x==y)
     }
 
     #[test]
@@ -157,6 +152,25 @@ mod tests {
         let res = g.split_len(&s,3);
         assert!( res != None );
     }
+
+    #[test]
+    fn grid1d_subset(){
+        let s1 = Grid1D{ beg : 50,end : 100};
+        let s2 = Grid1D{ beg : 50,end : 100};
+        let s3 = Grid1D{ beg : 70,end : 100};
+        let s4 = Grid1D{ beg : 100,end : 110};
+        let s5 = Grid1D{ beg : 0, end : 30};
+        let s6 = Grid1D{ beg : 30, end : 100 };
+        assert!( s1.subset(&s2) );
+        assert!( !s1.subset(&s3) );
+        assert!( !s1.subset(&s4) );
+        assert!( !s1.subset(&s5) );
+        assert!( s1.subset(&s6) );
+    }
+
+
+
+
 
 
 

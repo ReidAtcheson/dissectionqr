@@ -8,6 +8,8 @@ pub trait NodeSet {
     fn contains(&self,i : i64) -> bool;
     ///Determines if input nodeset is disjoint from this nodeset
     fn disjoint(&self,s : &Self) -> bool;
+    ///Determines if this nodeset is a subset of input subset
+    fn subset(&self,s : &Self) -> bool;
     ///Represents this nodeset as vector of integers
     fn enumerate(&self) -> Vec<i64>;
     ///Gives number of nodes contained in this nodeset

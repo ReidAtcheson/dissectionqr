@@ -55,18 +55,14 @@ impl Graph<Grid1D> for Stencil1D{
         let min_offs=self.offsets.iter().min().unwrap();
         let m=std::cmp::max(max_offs.abs(),min_offs.abs());
         let nnodes = s.nnodes() as i64;
-        let g1 = Grid1D{ beg : s.beg, end : s.beg + nnodes/2 -slen*m};
-        let g2 = Grid1D{ beg : nnodes/2, end : s.end};
-        let sep = Grid1D{ beg : nnodes/2 - slen*m, end : nnodes/2};
+        let g1 =  Grid1D{ beg : s.beg                  , end : s.beg + nnodes/2 -slen*m};
+        let g2 =  Grid1D{ beg : s.beg+nnodes/2         , end : s.end                   };
+        let sep = Grid1D{ beg : s.beg + nnodes/2 - slen*m      , end : s.beg + nnodes/2                };
 
         if g1.isvalid() && g2.isvalid() && sep.isvalid(){
             Some((sep,g1,g2))
         }
         else{
-            print!("\n{:?}\n",self);
-            print!("\n{:?}\n",g1);
-            print!("\n{:?}\n",g2);
-            print!("\n{:?}\n",sep);
             None
         }
 

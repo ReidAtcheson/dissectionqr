@@ -89,6 +89,7 @@ fn graphviz<S : NodeSet>(dtree : &DissectionTree<S>) -> (){
 mod tests {
     use super::*;
 
+    /* Below is for printing out the tree for inspection but not a real test
     #[test]
     fn nested_dissection_graphviz(){
         let s = Grid1D{beg : 0, end : 1000};
@@ -96,6 +97,7 @@ mod tests {
         let dtree = nested_dissection(&s,&g,200,1);
         graphviz(&dtree);
     }
+    */
 }
 
 

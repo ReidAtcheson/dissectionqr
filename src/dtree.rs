@@ -12,8 +12,8 @@ pub struct DissectionNode<S : NodeSet>{
     level : usize, 
     ///A unique index for this node
     id : usize,
-    ///A vector of `NodeSet`s representing rows for this node
-    rows : Vec<S>,
+    ///A vector of tree nodes representing rows for this node
+    rows : Vec<usize>,
     ///The children of this node, if any
     children : Option< (usize,usize) >,
     ///The parent of this node, if any
@@ -56,7 +56,6 @@ fn nested_dissection<S : NodeSet + Clone ,G : Graph<S>>(s : &S, g : &G,maxnodes 
             let child2 = DissectionNode{col : p2, level : t.level+1, id : id+2, rows : vec![], children : None, parent : Some(id)};
             dtree.arena.push(child1);
             dtree.arena.push(child2);
-
             id+=2;
         }
     }

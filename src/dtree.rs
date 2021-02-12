@@ -3,7 +3,7 @@ use crate::sparse::*;
 
 
 
-/// A tree to hold the result of nested dissection
+/// A tree node to hold the result of nested dissection
 pub struct DissectionNode<S : NodeSet>{
     ///A `NodeSet` representing the columns for this node
     col : S,
@@ -20,6 +20,7 @@ pub struct DissectionNode<S : NodeSet>{
 
 }
 
+/// The tree of DissectionNodes
 pub struct DissectionTree<S : NodeSet>{
     ///Index to root node
     root : usize,
@@ -28,6 +29,7 @@ pub struct DissectionTree<S : NodeSet>{
     ///Levels
     levels : Vec< Vec<usize> >
 }
+
 
 /// Builds basic nested dissection tree without level information
 fn nested_dissection_basic<S : NodeSet + Clone ,G : Graph<S>>(s : &S, g : &G,maxnodes : usize,pathlen : usize) -> DissectionTree<S> {
@@ -157,7 +159,7 @@ pub fn graphviz<S : NodeSet>(dtree : &DissectionTree<S>) -> (){
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sparse::*;
+    //use crate::sparse::*;
     use crate::grid::*;
     use std::collections::BTreeSet;
 

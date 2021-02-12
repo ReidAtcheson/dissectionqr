@@ -47,11 +47,16 @@ pub trait Graph<S : NodeSet>
 ///Defines basic sparse matrix. Indexed on nodes from a `NodeSet` and nonzero entries
 ///defined by edges from a `Graph`. The type `F` is the underlying field.
 pub trait SparseMatrix<F, S : NodeSet, G : Graph<S>>{
+
+    fn nrows(&self) -> usize;
+    fn ncols(&self) -> usize;
     ///Given row and column indices assemble the resulting submatrix
     ///from this sparse matrix into a _dense_ matrix. 
     ///This is used for assembling supernodes on a nested dissection tree,
     ///not for true sparse matrix assembly.
     fn assemble(&self,rows : &S,cols : &S) -> Array<F,Ix2>;
+
+
 }
 
 

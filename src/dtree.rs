@@ -29,37 +29,40 @@ pub struct DissectionTree<S : NodeSet>{
     levels : Vec< Vec<usize> >
 }
 
-
 /// Builds basic nested dissection tree without level information
-fn nested_dissection<S : NodeSet + Clone ,G : Graph<S>>(s : &S, g : &G,maxnodes : usize,pathlen : usize) -> DissectionTree<S> {
+fn nested_dissection_basic<S : NodeSet + Clone ,G : Graph<S>>(s : &S, g : &G,maxnodes : usize,pathlen : usize) -> DissectionTree<S> {
 
-    let mut id : usize = 0;
-    let root = DissectionNode { col : s.clone(), level : 0, id : id, rows : vec![], children : None, parent : None };
-    let mut dtree = DissectionTree {root : id, arena : vec![root], levels : vec![] };
-    let mut stack : Vec<usize> = vec![id];
+    let root = DissectionNode { col : s.clone(), level : 0, id : 0, rows : vec![], children : None, parent : None };
+    let mut dtree = DissectionTree {root : 0, arena : vec![root], levels : vec![] };
+    let mut stack : Vec<usize> = vec![0];
 
     //This builds the basic tree
     while stack.len()>0 {
         let j = stack.pop().unwrap();
-        let t = &mut dtree.arena[j];
-        let p = &t.col;
+        //Indices of children nodes
+        let cid1 = dtree.arena.len();
+        let cid2 = dtree.arena.len()+1;
+        let level = dtree.arena[j].level;
+        let id = dtree.arena[j].id;
+        let p = &dtree.arena[j].col;
         let nnodes=p.nnodes();
         if nnodes>maxnodes{
             let (sep,p1,p2) = g.split_len(&p,pathlen).unwrap();
-            //Current tree becomes a separator
-            t.col=sep;
-            //Current tree gets children nodes - start with their ids
-            t.children = Some( (id+1,id+2) );
-            //Place children nodes onto stack
-            stack.push(id+1);
-            stack.push(id+2);
+            //Current tree node becomes a separator
+            dtree.arena[j].col=sep;
 
+            //Current tree node gets children nodes
+            dtree.arena[j].children = Some( (cid1,cid2) );
             //Create children nodes and place into arena
-            let child1 = DissectionNode{col : p1, level : t.level+1, id : id+1, rows : vec![], children : None, parent : Some(id)};
-            let child2 = DissectionNode{col : p2, level : t.level+1, id : id+2, rows : vec![], children : None, parent : Some(id)};
+            let child1 = DissectionNode{col : p1, level : level+1, id : cid1, rows : vec![], children : None, parent : Some(id)};
+            let child2 = DissectionNode{col : p2, level : level+1, id : cid2, rows : vec![], children : None, parent : Some(id)};
             dtree.arena.push(child1);
             dtree.arena.push(child2);
-            id+=2;
+
+
+            //Place children nodes onto stack
+            stack.push(cid1);
+            stack.push(cid2);
         }
     }
     dtree
@@ -104,9 +107,7 @@ fn upper_triangular_blocks<S : NodeSet>(dtree : &mut DissectionTree<S>) -> () {
             match dtree.arena[*id].parent {
                 Some(p) => {
                     for r in dtree.arena[*id].rows.clone().iter(){
-                        if (*r)>(*id){
-                            dtree.arena[p].rows.push(*r);
-                        }
+                        dtree.arena[p].rows.push(*r);
                     }
                 },
                 None => ()
@@ -114,14 +115,24 @@ fn upper_triangular_blocks<S : NodeSet>(dtree : &mut DissectionTree<S>) -> () {
         }
     }
     //Sort all the row arrays for each node
+    //and then remove duplicates
     for t in dtree.arena.iter_mut(){
         t.rows.sort_unstable();
+        t.rows.dedup();
     }
 }
 
 
 
-fn graphviz<S : NodeSet>(dtree : &DissectionTree<S>) -> (){
+pub fn nested_dissection<S : NodeSet + Clone , G : Graph<S> + Clone>(s : &S,g : &G,maxnodes : usize,pathlen : usize) -> DissectionTree<S> {
+    let mut dtree = nested_dissection_basic(s,g,maxnodes,pathlen);
+    build_levels(&mut dtree);
+    lower_triangular_blocks(&mut dtree);
+    upper_triangular_blocks(&mut dtree);
+    dtree
+}
+
+pub fn graphviz<S : NodeSet>(dtree : &DissectionTree<S>) -> (){
     let mut stack : Vec<usize> = vec![dtree.root];
 
     print!("\n");
@@ -156,7 +167,7 @@ mod tests {
         let s = Grid1D{beg : 0, end : 1000};
         let g = Stencil1D{ offsets : vec![-1,0,1] };
         let dtree = {   
-            let mut dtree = nested_dissection(&s,&g,200,1);
+            let mut dtree = nested_dissection_basic(&s,&g,200,1);
             build_levels(&mut dtree);
             lower_triangular_blocks(&mut dtree);
             upper_triangular_blocks(&mut dtree);
@@ -176,21 +187,21 @@ mod tests {
         let s = Grid1D{beg : 0, end : 1000};
         let g = Stencil1D{ offsets : vec![-1,0,1] };
         let dtree = {   
-            let mut dtree = nested_dissection(&s,&g,200,1);
+            let mut dtree = nested_dissection_basic(&s,&g,200,1);
             build_levels(&mut dtree);
             lower_triangular_blocks(&mut dtree);
             upper_triangular_blocks(&mut dtree);
             dtree
         };
         let arena=dtree.arena;
-        for n in arena.iter(){
+        for (id,n) in arena.iter().enumerate(){
             let true_parent=n.id;
+            assert_eq!(n.id,id);
             //Get children from node
             match n.children{
                 Some ((c1,c2)) =>{
                     let p1=arena[c1].parent.unwrap();
                     let p2=arena[c2].parent.unwrap();
-                    print!("\np1:  {},    p2:    {},   tp:   {}\n",p1,p2,true_parent);
                     assert_eq!(p1,p2);
                     assert_eq!(true_parent,p1);
                     assert_eq!(true_parent,p2);
@@ -208,7 +219,7 @@ mod tests {
         let s = Grid1D{beg : 0, end : 1000};
         let g = Stencil1D{ offsets : vec![-1,0,1] };
         let dtree = {   
-            let mut dtree = nested_dissection(&s,&g,200,1);
+            let mut dtree = nested_dissection_basic(&s,&g,200,1);
             build_levels(&mut dtree);
             lower_triangular_blocks(&mut dtree);
             upper_triangular_blocks(&mut dtree);
@@ -234,10 +245,10 @@ mod tests {
     //Parent rows should be union of children rows
     #[test]
     fn nested_dissection_grid1d_parent_child_union(){
-        let s = Grid1D{beg : 0, end : 1000};
-        let g = Stencil1D{ offsets : vec![-1,0,1] };
         let dtree = {   
-            let mut dtree = nested_dissection(&s,&g,200,1);
+            let s = Grid1D{beg : 0, end : 1000};
+            let g = Stencil1D{ offsets : vec![-1,0,1] };
+            let mut dtree = nested_dissection_basic(&s,&g,200,1);
             build_levels(&mut dtree);
             lower_triangular_blocks(&mut dtree);
             upper_triangular_blocks(&mut dtree);
@@ -249,14 +260,14 @@ mod tests {
                 Some((c1,c2)) => {
                     let child1=dtree.arena[c1].rows.clone();
                     let child2=dtree.arena[c2].rows.clone();
-                    let P : BTreeSet<usize> = parent.iter().cloned().collect();
-                    let S2 : BTreeSet<usize> = child1.iter().cloned().collect();
-                    let S3 : BTreeSet<usize> = child2.iter().cloned().collect();
-                    let S : BTreeSet<usize> = S2.union(&S3).cloned().collect();
+                    let p : BTreeSet<usize> = parent.iter().cloned().collect();
+                    let s2 : BTreeSet<usize> = child1.iter().cloned().collect();
+                    let s3 : BTreeSet<usize> = child2.iter().cloned().collect();
+                    let s : BTreeSet<usize> = s2.union(&s3).cloned().collect();
                     print!("parent {:?}\n",parent);
                     print!("child1 {:?}\n",child1);
                     print!("child2 {:?}\n",child2);
-                    assert!(P == S);
+                    assert!(p == s);
                 },
                 None => ()
             }
@@ -271,15 +282,13 @@ mod tests {
 
 
 
-    /* Below is for printing out the tree for inspection but not a real test
     #[test]
     fn nested_dissection_graphviz(){
         let s = Grid1D{beg : 0, end : 1000};
         let g = Stencil1D{ offsets : vec![-1,0,1] };
-        let dtree = nested_dissection(&s,&g,200,1);
+        let dtree = nested_dissection_basic(&s,&g,200,1);
         graphviz(&dtree);
     }
-    */
 }
 
 

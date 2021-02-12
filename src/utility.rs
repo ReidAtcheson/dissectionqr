@@ -165,10 +165,26 @@ mod tests {
     use super::*;
     use ndarray::prelude::*;
 
+
     #[test]
-    fn test_qr(){
-        let a : Array2<f32>  = Array::from_shape_vec((3,3).f(),vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
-        let mut qr = QRFact::<f32>::new(a);
+    fn test_qr_correct_f32(){
+        type F=f32;
+        let tol=1e-6;
+        let mut a : Array2<F>  = Array::from_shape_vec((3,3).f(),vec![1.0,0.0,3.0,0.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
+        let mut qr = QRFact::<F>::new(a.clone());
+        qr.mul_left_qt(&mut a);
+        qr.solve_r(&mut a);
+        //Now A should be the identity
+        for ((i,j),v) in a.indexed_iter(){
+            if i==j{
+                assert!( (v-1.0).abs()<tol );
+                print!("\nv-1.0  = {}\n",(v-1.0).abs());
+            }
+            else{
+                assert!( v.abs()<tol );
+            }
+
+        }
     }
 
     #[test]
@@ -177,6 +193,31 @@ mod tests {
         let a : Array2<f32>  = Array::from_shape_vec((3,3),vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
         let mut qr = QRFact::<f32>::new(a);
     }
+    #[test]
+    #[should_panic]
+    fn test_qr_rsolve_dims_match(){
+        let a : Array2<f32>  = Array::from_shape_vec((3,3),vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
+        let mut qr = QRFact::<f32>::new(a);
+        //This is incorrect shape for b, it should fail.
+        let mut b : Array2<f32>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
+        qr.solve_r(&mut b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_qr_rsolve_left_mul_qt_dims_match(){
+        let a : Array2<f32>  = Array::from_shape_vec((3,3),vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
+        let mut qr = QRFact::<f32>::new(a);
+        //This is incorrect shape for b, this should fail.
+        let mut b : Array2<f32>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
+        qr.mul_left_qt(&mut b);
+    }
+
+
+
+
+
+
 
 
 }

@@ -1,11 +1,12 @@
-use ndarray::prelude::Ix2;
-use ndarray::{Array,Array2,arr2};
+use ndarray::{Array,Array2};
+use ndarray::ShapeBuilder;
 // LAPACK QR factorization routines
 use lapack::{sgeqrf,dgeqrf,cgeqrf,zgeqrf};
 // LAPACK triangular solve routines
 use lapack::{strtrs,dtrtrs,ctrtrs,ztrtrs};
 // LAPACK householder reflector routines
 use lapack::{sormqr,dormqr,cunmqr,zunmqr};
+use num_traits::Float;
 
 
 use lapack::c32;
@@ -51,6 +52,14 @@ pub struct QRFact<F>{
     work : Vec<F>,
     lwork : i32
 }
+
+impl<F : Float> QRFact<F>{
+    pub fn new( a : Array2<F> )->Self{
+        panic!("This function should never be called");
+        QRFact { m : 0 as i32, n : 0 as i32, qr : Array::zeros((5,5)),vec![],vec![],0 as i32}
+    }
+}
+
 
 
 

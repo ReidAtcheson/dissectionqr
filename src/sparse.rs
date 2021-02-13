@@ -1,6 +1,6 @@
 
 use ndarray::prelude::Ix2;
-use ndarray::Array;
+use ndarray::{Array,Array2};
 
 
 ///A generic set of nodes with the minimal functions necessary for sparse matrix manipulation
@@ -54,7 +54,9 @@ pub trait SparseMatrix<F, S : NodeSet, G : Graph<S>>{
     ///from this sparse matrix into a _dense_ matrix. 
     ///This is used for assembling supernodes on a nested dissection tree,
     ///not for true sparse matrix assembly.
-    fn assemble(&self,rows : &S,cols : &S) -> Array<F,Ix2>;
+    fn assemble(&self,rows : &S,cols : &S) -> Array2<F>;
+
+    fn eval(&self,x : &Array2<F>,y : &mut Array2<F>) -> ();
 
 
 }

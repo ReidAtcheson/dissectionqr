@@ -6,28 +6,28 @@ use crate::sparse::*;
 /// A tree node to hold the result of nested dissection
 pub struct DissectionNode<S : NodeSet>{
     ///A `NodeSet` representing the columns for this node
-    col : S,
+    pub col : S,
     ///Level of the tree
-    level : usize, 
+    pub level : usize, 
     ///A unique index for this node
-    id : usize,
+    pub id : usize,
     ///A vector of tree nodes representing rows for this node
-    rows : Vec<usize>,
+    pub rows : Vec<usize>,
     ///The children of this node, if any
-    children : Option< (usize,usize) >,
+    pub children : Option< (usize,usize) >,
     ///The parent of this node, if any
-    parent : Option<usize>
+    pub parent : Option<usize>
 
 }
 
 /// The tree of DissectionNodes
 pub struct DissectionTree<S : NodeSet>{
     ///Index to root node
-    root : usize,
+    pub root : usize,
     ///Vector of tree nodes
-    arena : Vec<DissectionNode<S>>,
+    pub arena : Vec<DissectionNode<S>>,
     ///Levels
-    levels : Vec< Vec<usize> >
+    pub levels : Vec< Vec<usize> >
 }
 
 
@@ -270,6 +270,25 @@ mod tests {
                 },
                 None => ()
             }
+        }
+    }
+
+    #[test]
+    fn nested_dissection_grid1d_level_order(){
+        let dtree = {   
+            let s = Grid1D{beg : 0, end : 1000};
+            let g = Stencil1D{ offsets : vec![-1,0,1] };
+            let mut dtree = nested_dissection_basic(&s,&g,200,1);
+            build_levels(&mut dtree);
+            lower_triangular_blocks(&mut dtree);
+            upper_triangular_blocks(&mut dtree);
+            dtree
+        }; 
+        let nlevels=dtree.arena.iter().map(|x|{x.level}).max().unwrap()+1;
+        assert_eq!(dtree.levels[0].len(),1);
+        assert_eq!(dtree.arena[dtree.levels[0][0]].level,0);
+        for node in dtree.levels[dtree.levels.len()-1].iter(){
+            assert_eq!(dtree.arena[*node].level,nlevels-1);
         }
     }
 

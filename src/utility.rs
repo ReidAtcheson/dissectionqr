@@ -728,10 +728,145 @@ mod tests {
     }
 
 
+    /**
+     *
+     * FLOAT64 TESTS
+     *
+     */
+
+    #[test]
+    fn test_qr_correct_normal_f64(){
+        type F=f64;
+        let eps=F::epsilon();
+        let tol=50.0*eps;
+        let m=50;
+        let mut a : Array2<F>  = Array::zeros((m,m).f());
+        for ((i,j),v) in a.indexed_iter_mut(){
+            if i != j{
+                let ifl = i as F;
+                let jfl = j as F;
+                *v=(ifl+3.0*jfl).sin();
+            }
+            else{
+                *v=15.0;
+            }
+        }
+        let mut qr = QRFact::<F>::new(a.clone());
+        qr.mul_left_qt(&mut a);
+        qr.solve_r(&mut a);
+        //Now A should be the identity
+        for ((i,j),v) in a.indexed_iter(){
+            if i==j{
+                print!("\nv-one  = {}\n",(v-1.0).abs());
+                assert!( (v-1.0).abs()<tol );
+            }
+            else{
+                assert!( v.abs()<tol );
+            }
+        }
+    }
+    #[test]
+    fn test_qr_correct_transpose_f64(){
+        type F=f64;
+        let eps=F::epsilon();
+        let tol=50.0*eps;
+        let m=50;
+        let mut a : Array2<F>  = Array::zeros((m,m).f());
+        let mut at : Array2<F>  = Array::zeros((m,m).f());
+        for ((i,j),v) in a.indexed_iter_mut(){
+            if i != j{
+                let ifl = i as F;
+                let jfl = j as F;
+                *v=(ifl+3.0*jfl).sin();
+            }
+            else{
+                *v=15.0;
+            }
+        }
+
+        for ((i,j),v) in a.indexed_iter(){
+            at[[j,i]]=*v
+        }
 
 
+        let mut qr = QRFact::<F>::new(at);
+        qr.solve_rt(&mut a);
+        qr.mul_left_q(&mut a);
+        //Now A should be the identity
+        for ((i,j),v) in a.indexed_iter(){
+            if i==j{
+                print!("\nv-one  = {}\n",(v-1.0).abs());
+                assert!( (v-1.0).abs()<tol );
+            }
+            else{
+                assert!( v.abs()<tol );
+            }
+        }
+    }
+
+    #[test]
+    fn test_qr_correct_orthogonal_f64(){
+        type F=f64;
+        let eps=F::epsilon();
+        let tol=50.0*eps;
+        let m=50;
+        let mut a : Array2<F>  = Array::zeros((m,m).f());
+        let mut id : Array2<F> = Array::zeros((m,m).f());
+        for ((i,j),v) in a.indexed_iter_mut(){
+            if i != j{
+                let ifl = i as F;
+                let jfl = j as F;
+                *v=(ifl+3.0*jfl).sin();
+            }
+            else{
+                *v=15.0;
+            }
+        }
+        for ((i,j),v) in id.indexed_iter_mut(){
+            if i==j{
+                *v=1.0;
+            }
+        }
+        let mut qr = QRFact::<F>::new(a.clone());
+        qr.mul_left_q(&mut id);
+        qr.mul_left_qt(&mut id);
+        for ((i,j),v) in id.indexed_iter(){
+            if i==j{
+                print!("\nv-one  = {}\n",(v-1.0).abs());
+                assert!( (v-1.0).abs()<tol );
+            }
+            else{
+                assert!( v.abs()<tol );
+            }
+        }
+    }
 
 
+    #[test]
+    #[should_panic]
+    fn test_qr_c_major_input_f64(){
+        let a : Array2<f64>  = Array::from_shape_vec((3,3),vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
+        let mut qr = QRFact::<f64>::new(a);
+    }
+    #[test]
+    #[should_panic]
+    fn test_qr_rsolve_dims_match_f64(){
+        let a : Array2<f64>  = Array::from_shape_vec((3,3),vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
+        let mut qr = QRFact::<f64>::new(a);
+        //This is incorrect shape for b, it should fail.
+        let mut b : Array2<f64>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
+        qr.solve_r(&mut b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_qr_rsolve_left_mul_qt_dims_match_f64(){
+        let a : Array2<f64>  = Array::from_shape_vec((3,3),vec![1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0]).unwrap();
+        let mut qr = QRFact::<f64>::new(a);
+        //This is incorrect shape for b, this should fail.
+        let mut b : Array2<f64>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
+        qr.mul_left_qt(&mut b);
+    }
 
 
 }

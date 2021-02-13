@@ -9,6 +9,8 @@ use lapack::{sormqr,dormqr,cunmqr,zunmqr};
 use num_traits::Float;
 
 
+//I want to add these but they do not implement any trait in common with
+//floats
 use lapack::c32;
 use lapack::c64;
 type C32=c32;
@@ -36,10 +38,88 @@ fn check_lapack_info(info : i32) -> Option<()>{
     }
 }
 
+enum NumSlice<'a>{
+    Float32(&'a mut [f32]),
+    Float64(&'a mut [f64]),
+    Complex32(&'a mut [C32]),
+    Complex64(&'a mut [C64])
+}
+
+// Dynamic type that can hold one of 4 very similar types
+enum NumNDArray{
+    Float32(Array2<f32>),
+    Float64(Array2<f64>),
+    Complex32(Array2<C32>),
+    Complex64(Array2<C64>)
+}
+
+//Implement "From" conversions for the four types
+//This automatically implements "Into" as well
+impl From<Array2<f32>> for NumNDArray{
+    fn from(arr : Array2<f32>) -> Self {
+        NumNDArray::Float32(arr)
+    }
+}
+impl From<Array2<f64>> for NumNDArray{
+    fn from(arr : Array2<f64>) -> Self {
+        NumNDArray::Float64(arr)
+    }
+}
+impl From<Array2<C32>> for NumNDArray{
+    fn from(arr : Array2<C32>) -> Self {
+        NumNDArray::Complex32(arr)
+    }
+}
+impl From<Array2<C64>> for NumNDArray{
+    fn from(arr : Array2<C64>) -> Self {
+        NumNDArray::Complex64(arr)
+    }
+}
+//pub struct QRFact<F,T : Into<Array2<F>> + Into<NumNDArray> >{
 
 
 
 
+fn xgeqrf(m : i32, n : i32, a : NumSlice,lda : i32, tau : NumSlice,work : NumSlice,lwork : i32,info : &mut i32) -> () {
+    use crate::utility::NumSlice::Float32;
+    use crate::utility::NumSlice::Float64;
+    use crate::utility::NumSlice::Complex32;
+    use crate::utility::NumSlice::Complex64;
+    match (a,tau,work){        
+        (Float32(x),Float32(y),Float32(z)) => unsafe { sgeqrf(m,n,x,lda,y,z,lwork,info) },
+        (Float64(x),Float64(y),Float64(z)) => unsafe { dgeqrf(m,n,x,lda,y,z,lwork,info) },
+        (Complex32(x),Complex32(y),Complex32(z)) => unsafe { cgeqrf(m,n,x,lda,y,z,lwork,info) },
+        (Complex64(x),Complex64(y),Complex64(z)) => unsafe { zgeqrf(m,n,x,lda,y,z,lwork,info) },
+        _ => panic!("Type mismatch in xgeqrf")
+    };
+}
+fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : NumSlice,lda : i32,b : NumSlice,ldb : i32,info : &mut i32) -> () {
+    use crate::utility::NumSlice::Float32;
+    use crate::utility::NumSlice::Float64;
+    use crate::utility::NumSlice::Complex32;
+    use crate::utility::NumSlice::Complex64;
+    match (a,b){
+        (Float32(a),Float32(b)) => unsafe { strtrs(uplo,trans,diag,n,nrhs,a,lda,b,ldb,info) },
+        (Float64(a),Float64(b)) => unsafe { dtrtrs(uplo,trans,diag,n,nrhs,a,lda,b,ldb,info) },
+        (Complex32(a),Complex32(b)) => unsafe { ctrtrs(uplo,trans,diag,n,nrhs,a,lda,b,ldb,info) },
+        (Complex64(a),Complex64(b)) => unsafe { ztrtrs(uplo,trans,diag,n,nrhs,a,lda,b,ldb,info) },
+        _ => panic!("Type mismatch in xtrtrs")
+    }
+}
+
+fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : NumSlice,lda : i32,tau : NumSlice,c : NumSlice,ldc : i32,work : NumSlice,lwork : i32,info : &mut i32)->(){
+    use crate::utility::NumSlice::Float32;
+    use crate::utility::NumSlice::Float64;
+    use crate::utility::NumSlice::Complex32;
+    use crate::utility::NumSlice::Complex64;
+    match (a,tau,c,work){
+        (Float32(a),Float32(tau),Float32(c),Float32(work)) => unsafe { sormqr(side,trans,m,n,k,a,lda,tau,c,ldc,work,lwork,info) },
+        (Float64(a),Float64(tau),Float64(c),Float64(work)) => unsafe { dormqr(side,trans,m,n,k,a,lda,tau,c,ldc,work,lwork,info) },
+        (Complex32(a),Complex32(tau),Complex32(c),Complex32(work)) => unsafe { cunmqr(side,trans,m,n,k,a,lda,tau,c,ldc,work,lwork,info) },
+        (Complex64(a),Complex64(tau),Complex64(c),Complex64(work)) => unsafe { zunmqr(side,trans,m,n,k,a,lda,tau,c,ldc,work,lwork,info) },
+        _ => panic!("Type mismatch in xmqr")
+    }
+}
 
 
 /// A simple class wrapping LAPACK's xGEQRF and presenting a 
@@ -52,6 +132,8 @@ pub struct QRFact<F>{
     work : Vec<F>,
     lwork : i32
 }
+
+
 
 
 
@@ -74,10 +156,12 @@ impl QRFact<f32>{
         let lwork = nb * 2 as i32;
         let mut work : Vec<F> = vec![0.0;lwork as usize];
         let mut info=0 as i32;
-        unsafe{
-            let qrslice = qr.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            sgeqrf(m,n,qrslice,lda,&mut tau,&mut work,lwork,&mut info);
-        }
+        use crate::utility::NumSlice::Float32;
+        use crate::utility::NumSlice::Float64;
+        use crate::utility::NumSlice::Complex32;
+        use crate::utility::NumSlice::Complex64;
+        let qrslice = qr.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        xgeqrf(m,n,Float32(qrslice),lda,Float32(&mut tau),Float32(&mut work),lwork,&mut info);
         check_lapack_info(info).expect(&format!("sgeqrf failed with info={}",info)[..]);
         QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork}
     }

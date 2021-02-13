@@ -75,7 +75,7 @@ fn factorize<F : Float, S : NodeSet>(fact : &mut NumericFactorization<F,S>) -> (
             };
             let rows = &fact.data[*cid];
             let stacked = gather(&rids,&rows);
-            let qr = QRFact::<F>::new(stacked);
+            //let qr = QRFact::<F>::new(stacked);
         }
     }
 }

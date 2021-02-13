@@ -53,12 +53,6 @@ pub struct QRFact<F>{
     lwork : i32
 }
 
-impl<F : Float> QRFact<F>{
-    pub fn new( a : Array2<F> )->Self{
-        panic!("This function should never be called");
-        QRFact { m : 0 as i32, n : 0 as i32, qr : Array::zeros((5,5)),vec![],vec![],0 as i32}
-    }
-}
 
 
 

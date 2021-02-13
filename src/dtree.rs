@@ -266,9 +266,6 @@ mod tests {
                     let s2 : BTreeSet<usize> = child1.iter().cloned().collect();
                     let s3 : BTreeSet<usize> = child2.iter().cloned().collect();
                     let s : BTreeSet<usize> = s2.union(&s3).cloned().collect();
-                    print!("parent {:?}\n",parent);
-                    print!("child1 {:?}\n",child1);
-                    print!("child2 {:?}\n",child2);
                     assert!(p == s);
                 },
                 None => ()
@@ -283,7 +280,7 @@ mod tests {
 
 
 
-
+    /*
     #[test]
     fn nested_dissection_graphviz(){
         let s = Grid1D{beg : 0, end : 1000};
@@ -291,6 +288,7 @@ mod tests {
         let dtree = nested_dissection_basic(&s,&g,200,1);
         graphviz(&dtree);
     }
+    */
 }
 
 

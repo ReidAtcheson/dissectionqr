@@ -7,7 +7,7 @@ use ndarray::prelude::Ix2;
 use ndarray::{Array,Array2};
 use ndarray::ShapeBuilder;
 use crate::utility::*;
-use num_traits::Float;
+use num_traits::{Float,Zero};
 
 
 
@@ -38,7 +38,7 @@ fn assemble<F : Clone, S : NodeSet, G : Graph<S>, M : SparseMatrix<F,S,G>>(dtree
     NumericFactorization { dtree : dtree,data : data, qrs : vec![], rus : vec![] }
 }
 
-fn gather<F : Float>(rids : &Vec<usize>,rows : &BTreeMap<usize,Array2<F>>) -> Array2<F>{
+fn gather<F : Lapack<F> + Clone + Zero >(rids : &Vec<usize>,rows : &BTreeMap<usize,Array2<F>>) -> Array2<F>{
 
     let ncols=rows.get(&rids[0]).unwrap().shape()[1];
     let nrows=rids.iter().map(|x| rows.get(x).unwrap().shape()[0] ).fold(0,|acc,x| acc+x);
@@ -52,7 +52,7 @@ fn gather<F : Float>(rids : &Vec<usize>,rows : &BTreeMap<usize,Array2<F>>) -> Ar
 /// It factorizes one level at a time starting at the bottom most level
 /// proceeding like this until top node has been factorized
 /// Once top node has been factorized, the algorithm is complete.
-fn factorize<F : Float, S : NodeSet>(fact : &mut NumericFactorization<F,S>) -> () {
+fn factorize<F : Lapack<F> + Clone + Zero, S : NodeSet>(fact : &mut NumericFactorization<F,S>) -> () {
     let levels = &fact.dtree.levels;
     let arena  = &fact.dtree.arena;
     let nblocks=arena.len();
@@ -75,7 +75,7 @@ fn factorize<F : Float, S : NodeSet>(fact : &mut NumericFactorization<F,S>) -> (
             };
             let rows = &fact.data[*cid];
             let stacked = gather(&rids,&rows);
-            //let qr = QRFact::<F>::new(stacked);
+            let qr = QRFact::<F>::new(stacked);
         }
     }
 }

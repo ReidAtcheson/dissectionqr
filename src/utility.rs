@@ -415,7 +415,6 @@ mod tests {
         }
     }
 
-    /*
     fn test_qr_correct_normal_complex<F>() -> () 
     where 
     F : Num + NumCast + Float + Clone + std::fmt::Display,
@@ -451,7 +450,6 @@ mod tests {
             }
         }
     }
-    */
 
 
 
@@ -464,12 +462,10 @@ mod tests {
     fn test_qr_correct_normal_f64(){
         test_qr_correct_normal::<f64>();
     }
-    /*
     #[test]
     fn test_qr_correct_normal_c32(){
         test_qr_correct_normal_complex::<f32>();
     }
-    */
 
 
 

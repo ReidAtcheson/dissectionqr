@@ -7,12 +7,13 @@ use lapack::{strtrs,dtrtrs,ctrtrs,ztrtrs};
 // LAPACK householder reflector routines
 use lapack::{sormqr,dormqr,cunmqr,zunmqr};
 use num_traits::{Float,Zero};
+use num_complex::Complex;
 
 
-use lapack::c32;
-use lapack::c64;
-type C32=c32;
-type C64=c64;
+//use lapack::c32;
+//use lapack::c64;
+type C32=Complex<f32>;
+type C64=Complex<f64>;
 
 fn check_if_fortran_style<F>(a : &Array2<F>) -> Option<()>{
     let strides=a.strides();

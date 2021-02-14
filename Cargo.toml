@@ -9,9 +9,8 @@ edition = "2018"
 [dependencies]
 num-traits="0.2"
 ndarray = "0.14.0"
-lapack = "0.16.0"
-#blas = "0.21.0"
-#num-complex="0.3" currently limited by BLAS which uses lower version
-blas = { git = "https://github.com/blas-lapack-rs/blas.git", version = "0.21.0" }
+lapack = "0.17.0"
+blas = "0.21.0"
+num-complex="0.3" 
 openblas-src = "0.10.2"
 

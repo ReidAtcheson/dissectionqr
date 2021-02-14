@@ -37,189 +37,139 @@ fn check_lapack_info(info : i32) -> Option<()>{
     }
 }
 
-pub enum NumNDArray{
-    Float32(Array2<f32>),
-    Float64(Array2<f64>),
-    Complex32(Array2<C32>),
-    Complex64(Array2<C64>)
+
+pub trait Lapack<F>{
+    fn xgeqrf(m : i32, n : i32, a : &mut Array2<F>,lda : i32, tau : &mut Array2<F>,work : &mut Array2<F>,lwork : i32,info : &mut i32)->();
+    fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : &mut Array2<F>,lda : i32,b : &mut Array2<F>,ldb : i32,info : &mut i32) -> ();
+    fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : &mut Array2<F>,lda : i32,
+        tau : &mut Array2<F>,c : &mut Array2<F>,ldc : i32,work : &mut Array2<F>,lwork : i32,info : &mut i32)->();
 }
-impl From<Array2<f32>> for NumNDArray{
-    fn from(arr : Array2<f32>) -> Self{
-        NumNDArray::Float32(arr)
-    }
-}
-impl From<NumNDArray> for Array2<f32>{
-    fn from(arr : NumNDArray) -> Self{
-        match arr{
-            NumNDArray::Float32(arr) => arr,
-            _ => panic!("Misconversion from Array2 to NumNDArray")
-        }
-    }
-}
-
-impl From<Array2<f64>> for NumNDArray{
-    fn from(arr : Array2<f64>) -> Self{
-        NumNDArray::Float64(arr)
-    }
-}
-impl From<NumNDArray> for Array2<f64>{
-    fn from(arr : NumNDArray) -> Self{
-        match arr{
-            NumNDArray::Float64(arr) => arr,
-            _ => panic!("Misconversion from Array2 to NumNDArray")
-        }
-    }
-}
-
-impl From<Array2<C32>> for NumNDArray{
-    fn from(arr : Array2<C32>) -> Self{
-        NumNDArray::Complex32(arr)
-    }
-}
-impl From<NumNDArray> for Array2<C32>{
-    fn from(arr : NumNDArray) -> Self{
-        match arr{
-            NumNDArray::Complex32(arr) => arr,
-            _ => panic!("Misconversion from Array2 to NumNDArray")
-        }
-    }
-}
-
-impl From<Array2<C64>> for NumNDArray{
-    fn from(arr : Array2<C64>) -> Self{
-        NumNDArray::Complex64(arr)
-    }
-}
-impl From<NumNDArray> for Array2<C64>{
-    fn from(arr : NumNDArray) -> Self{
-        match arr{
-            NumNDArray::Complex64(arr) => arr,
-            _ => panic!("Misconversion from Array2 to NumNDArray")
-        }
-    }
-}
-
-
-
-
-
-
-
-
-fn xgeqrf(m : i32, n : i32, a : &mut NumNDArray,lda : i32, tau : &mut NumNDArray,work : &mut NumNDArray,lwork : i32,info : &mut i32) -> () {
-    use NumNDArray::Float32;
-    use NumNDArray::Float64;
-    use NumNDArray::Complex32;
-    use NumNDArray::Complex64;
-    match (a,tau,work){        
-        (Float32(x),Float32(y),Float32(z)) => unsafe { 
-            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+impl Lapack<f32> for f32{
+    fn xgeqrf(m : i32, n : i32, a : &mut Array2<f32>,lda : i32, tau : &mut Array2<f32>,work : &mut Array2<f32>,lwork : i32,info : &mut i32)->(){
+        let xp = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let yp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let zp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
             sgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
-        },
-        (Float64(x),Float64(y),Float64(z)) => unsafe { 
-            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            dgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
-        },
-        (Complex32(x),Complex32(y),Complex32(z)) => unsafe { 
-            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            cgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
-        },
-        (Complex64(x),Complex64(y),Complex64(z)) => unsafe { 
-            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            zgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
-        },
-        _ => panic!("Type mismatch in xgeqrf")
-    };
-}
-
-fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : &mut NumNDArray,lda : i32,b : &mut NumNDArray,ldb : i32,info : &mut i32) -> () {
-    use NumNDArray::Float32;
-    use NumNDArray::Float64;
-    use NumNDArray::Complex32;
-    use NumNDArray::Complex64;
-    let ctrans= if trans==b'T'{b'C'} else {b'N'};
-    match (a,b){
-        (Float32(a),Float32(b)) => unsafe { 
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        }
+    }
+    fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : &mut Array2<f32>,lda : i32,b : &mut Array2<f32>,ldb : i32,info : &mut i32) -> (){
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
             strtrs(uplo,trans,diag,n,nrhs,ap,lda,bp,ldb,info) 
-        },
-        (Float64(a),Float64(b)) => unsafe { 
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            dtrtrs(uplo,trans,diag,n,nrhs,ap,lda,bp,ldb,info) 
-        },
-        (Complex32(a),Complex32(b)) => unsafe { 
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            ctrtrs(uplo,ctrans,diag,n,nrhs,ap,lda,bp,ldb,info) 
-        },
-        (Complex64(a),Complex64(b)) => unsafe { 
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            ztrtrs(uplo,ctrans,diag,n,nrhs,ap,lda,bp,ldb,info) 
-        },
-        _ => panic!("Type mismatch in xtrtrs")
+        }
     }
-}
-
-fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : &mut NumNDArray,lda : i32,
-        tau : &mut NumNDArray,c : &mut NumNDArray,ldc : i32,work : &mut NumNDArray,lwork : i32,info : &mut i32)->(){
-    use NumNDArray::Float32;
-    use NumNDArray::Float64;
-    use NumNDArray::Complex32;
-    use NumNDArray::Complex64;
-    let ctrans= if trans==b'T'{b'C'} else {b'N'};
-    match (a,tau,c,work){
-        (Float32(a),Float32(tau),Float32(c),Float32(work)) => unsafe {
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+    fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : &mut Array2<f32>,lda : i32,
+        tau : &mut Array2<f32>,c : &mut Array2<f32>,ldc : i32,work : &mut Array2<f32>,lwork : i32,info : &mut i32)->(){
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
             sormqr(side,trans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
-        },
-        (Float64(a),Float64(tau),Float64(c),Float64(work)) => unsafe {
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            dormqr(side,trans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
-        },
-        (Complex32(a),Complex32(tau),Complex32(c),Complex32(work)) => unsafe {
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            cunmqr(side,ctrans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
-        },
-        (Complex64(a),Complex64(tau),Complex64(c),Complex64(work)) => unsafe {
-            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            zunmqr(side,ctrans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) },
-        _ => panic!("Type mismatch in xmqr")
+        }
     }
 }
 
+impl Lapack<Complex<f32>> for Complex<f32>{
+    fn xgeqrf(m : i32, n : i32, a : &mut Array2<Complex<f32>>,lda : i32, tau : &mut Array2<Complex<f32>>,work : &mut Array2<Complex<f32>>,lwork : i32,info : &mut i32)->(){
+        let xp = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let yp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let zp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            cgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
+        }
+    }
+    fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : &mut Array2<Complex<f32>>,lda : i32,b : &mut Array2<Complex<f32>>,ldb : i32,info : &mut i32) -> (){
+        let ctrans= if trans==b'T'{b'C'} else {b'N'};
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            ctrtrs(uplo,ctrans,diag,n,nrhs,ap,lda,bp,ldb,info) 
+        }
+    }
+    fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : &mut Array2<Complex<f32>>,lda : i32,
+        tau : &mut Array2<Complex<f32>>,c : &mut Array2<Complex<f32>>,ldc : i32,work : &mut Array2<Complex<f32>>,lwork : i32,info : &mut i32)->(){
+        let ctrans= if trans==b'T'{b'C'} else {b'N'};
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            cunmqr(side,ctrans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
+        }
+    }
+
+}
+
+
+impl Lapack<f64> for f64{
+    fn xgeqrf(m : i32, n : i32, a : &mut Array2<f64>,lda : i32, tau : &mut Array2<f64>,work : &mut Array2<f64>,lwork : i32,info : &mut i32)->(){
+        let xp = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let yp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let zp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            dgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
+        }
+    }
+    fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : &mut Array2<f64>,lda : i32,b : &mut Array2<f64>,ldb : i32,info : &mut i32) -> (){
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            dtrtrs(uplo,trans,diag,n,nrhs,ap,lda,bp,ldb,info) 
+        }
+    }
+    fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : &mut Array2<f64>,lda : i32,
+        tau : &mut Array2<f64>,c : &mut Array2<f64>,ldc : i32,work : &mut Array2<f64>,lwork : i32,info : &mut i32)->(){
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            dormqr(side,trans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
+        }
+    }
+}
+
+impl Lapack<Complex<f64>> for Complex<f64>{
+    fn xgeqrf(m : i32, n : i32, a : &mut Array2<Complex<f64>>,lda : i32, tau : &mut Array2<Complex<f64>>,work : &mut Array2<Complex<f64>>,lwork : i32,info : &mut i32)->(){
+        let xp = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let yp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let zp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            zgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
+        }
+    }
+    fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : &mut Array2<Complex<f64>>,lda : i32,b : &mut Array2<Complex<f64>>,ldb : i32,info : &mut i32) -> (){
+        let ctrans= if trans==b'T'{b'C'} else {b'N'};
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            ztrtrs(uplo,ctrans,diag,n,nrhs,ap,lda,bp,ldb,info) 
+        }
+    }
+    fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : &mut Array2<Complex<f64>>,lda : i32,
+        tau : &mut Array2<Complex<f64>>,c : &mut Array2<Complex<f64>>,ldc : i32,work : &mut Array2<Complex<f64>>,lwork : i32,info : &mut i32)->(){
+        let ctrans= if trans==b'T'{b'C'} else {b'N'};
+        let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+        unsafe{
+            zunmqr(side,ctrans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
+        }
+    }
+}
 /// A simple class wrapping LAPACK's xGEQRF and presenting a 
 /// nicer interface for rust code.
 pub struct QRFact<F>{
     m : i32,
     n : i32,
-    qr : NumNDArray,
-    tau : NumNDArray,
-    work : NumNDArray,
+    qr : Array2<F>,
+    tau : Array2<F>,
+    work : Array2<F>,
     lwork : i32,
-    why_me : F
 }
 
 
@@ -228,8 +178,7 @@ pub struct QRFact<F>{
 
 impl <F>  QRFact<F>
 where
-F : Clone + Zero,
-Array2<F> : From<NumNDArray> + Into<NumNDArray>{
+F : Clone + Zero + Lapack<F>{
     /// Take ownership of matrix `a` and do an in-place QR factorization
     pub fn new<'b>( a : Array2<F> )->Self{
         check_if_fortran_style(&a).expect("Matrix input to QRFact was not column-major ordered");
@@ -244,14 +193,14 @@ Array2<F> : From<NumNDArray> + Into<NumNDArray>{
         let t : Array2<F> = Array::zeros((ntau as usize,1).f());
         let w : Array2<F> = Array::zeros((lwork as usize,1).f());
         {
-            let mut qr : NumNDArray = a.into();
-            let mut tau  : NumNDArray = t.into();
-            let mut work  : NumNDArray = w.into();
+            let mut qr  = a;
+            let mut tau =t; 
+            let mut work=w;
             let mut info=0 as i32;
-            xgeqrf(m,n,&mut qr,lda,&mut tau,&mut work,lwork,&mut info);
+            F::xgeqrf(m,n,&mut qr,lda,&mut tau,&mut work,lwork,&mut info);
             check_lapack_info(info).expect(&format!("xgeqrf failed with info={}",info)[..]);
 
-            QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork,why_me : F::zero()}
+            QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork}
         }
     }
     /// Solve Rx=b in-place with the array b.
@@ -274,10 +223,10 @@ Array2<F> : From<NumNDArray> + Into<NumNDArray>{
 
         {
             let mut info = 0 as i32;
-            let mut bb : NumNDArray = b.into();
-            xtrtrs(b'U',b'N',b'N',n,nrhs,&mut self.qr,lda,&mut bb,ldb,&mut info);
+            let mut bb = b;
+            F::xtrtrs(b'U',b'N',b'N',n,nrhs,&mut self.qr,lda,&mut bb,ldb,&mut info);
             check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-            Array2::<F>::from(bb)
+            bb
         }
     }
 
@@ -304,10 +253,10 @@ Array2<F> : From<NumNDArray> + Into<NumNDArray>{
         } as i32;
         {
             let mut info = 0;
-            let mut bb : NumNDArray = b.into();
-            xtrtrs(b'U',b'T',b'N',n,nrhs,&mut self.qr,lda,&mut bb,ldb,&mut info);
+            let mut bb =b;
+            F::xtrtrs(b'U',b'T',b'N',n,nrhs,&mut self.qr,lda,&mut bb,ldb,&mut info);
             check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-            Array2::<F>::from(bb)
+            bb
         }
     }
 
@@ -329,10 +278,10 @@ Array2<F> : From<NumNDArray> + Into<NumNDArray>{
         let lwork=self.lwork;
         {
             let mut info = 0 as i32;
-            let mut cc : NumNDArray = c.into();
-            xmqr(b'L',b'T',m,n,k,&mut self.qr,lda,&mut self.tau,&mut cc,ldc,&mut self.work,lwork,&mut info);
+            let mut cc = c;
+            F::xmqr(b'L',b'T',m,n,k,&mut self.qr,lda,&mut self.tau,&mut cc,ldc,&mut self.work,lwork,&mut info);
             check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-            Array2::<F>::from(cc)
+            cc
         }
     }
 
@@ -354,10 +303,10 @@ Array2<F> : From<NumNDArray> + Into<NumNDArray>{
         let lwork=self.lwork;
         {
             let mut info = 0 as i32;
-            let mut cc : NumNDArray = c.into();
-            xmqr(b'L',b'N',m,n,k,&mut self.qr,lda,&mut self.tau,&mut cc,ldc,&mut self.work,lwork,&mut info);
+            let mut cc  = c;
+            F::xmqr(b'L',b'N',m,n,k,&mut self.qr,lda,&mut self.tau,&mut cc,ldc,&mut self.work,lwork,&mut info);
             check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-            Array2::<F>::from(cc)
+            cc
         }
     }
 }
@@ -382,8 +331,7 @@ mod tests {
 
     fn test_qr_correct_normal<F>() -> () 
     where 
-    F : Float + NumCast + std::fmt::Display,
-    Array2<F> : From<NumNDArray> + Into<NumNDArray>{
+    F : Float + NumCast + std::fmt::Display + Lapack<F>{
         let eps=F::epsilon();
         let scaling : F = NumCast::from(50 as i64).unwrap();
         let tol=scaling*eps;
@@ -418,8 +366,7 @@ mod tests {
     fn test_qr_correct_normal_complex<F>() -> () 
     where 
     F : Num + NumCast + Float + Clone + std::fmt::Display,
-    Complex<F> : Num + NumCast + std::fmt::Display,
-    Array2<Complex<F>> : From<NumNDArray> + Into<NumNDArray>{
+    Complex<F> : Num + NumCast + std::fmt::Display + Lapack<Complex<F>>{
         let eps=F::epsilon();
         let scaling : F = NumCast::from(50 as i64).unwrap();
         let tol=scaling*eps;

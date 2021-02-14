@@ -6,7 +6,7 @@ use lapack::{sgeqrf,dgeqrf,cgeqrf,zgeqrf};
 use lapack::{strtrs,dtrtrs,ctrtrs,ztrtrs};
 // LAPACK householder reflector routines
 use lapack::{sormqr,dormqr,cunmqr,zunmqr};
-use num_traits::Float;
+use num_traits::{Float,Zero};
 
 
 use lapack::c32;
@@ -36,110 +36,283 @@ fn check_lapack_info(info : i32) -> Option<()>{
     }
 }
 
+pub enum NumNDArray{
+    Float32(Array2<f32>),
+    Float64(Array2<f64>),
+    Complex32(Array2<C32>),
+    Complex64(Array2<C64>)
+}
+impl From<Array2<f32>> for NumNDArray{
+    fn from(arr : Array2<f32>) -> Self{
+        NumNDArray::Float32(arr)
+    }
+}
+impl From<NumNDArray> for Array2<f32>{
+    fn from(arr : NumNDArray) -> Self{
+        match arr{
+            NumNDArray::Float32(arr) => arr,
+            _ => panic!("Misconversion from Array2 to NumNDArray")
+        }
+    }
+}
 
+impl From<Array2<f64>> for NumNDArray{
+    fn from(arr : Array2<f64>) -> Self{
+        NumNDArray::Float64(arr)
+    }
+}
+impl From<NumNDArray> for Array2<f64>{
+    fn from(arr : NumNDArray) -> Self{
+        match arr{
+            NumNDArray::Float64(arr) => arr,
+            _ => panic!("Misconversion from Array2 to NumNDArray")
+        }
+    }
+}
 
+impl From<Array2<C32>> for NumNDArray{
+    fn from(arr : Array2<C32>) -> Self{
+        NumNDArray::Complex32(arr)
+    }
+}
+impl From<NumNDArray> for Array2<C32>{
+    fn from(arr : NumNDArray) -> Self{
+        match arr{
+            NumNDArray::Complex32(arr) => arr,
+            _ => panic!("Misconversion from Array2 to NumNDArray")
+        }
+    }
+}
 
-
-
-
-/// A simple class wrapping LAPACK's xGEQRF and presenting a 
-/// nicer interface for rust code.
-pub struct QRFact<F>{
-    m : i32,
-    n : i32,
-    qr : Array2<F>,
-    tau : Vec<F>,
-    work : Vec<F>,
-    lwork : i32
+impl From<Array2<C64>> for NumNDArray{
+    fn from(arr : Array2<C64>) -> Self{
+        NumNDArray::Complex64(arr)
+    }
+}
+impl From<NumNDArray> for Array2<C64>{
+    fn from(arr : NumNDArray) -> Self{
+        match arr{
+            NumNDArray::Complex64(arr) => arr,
+            _ => panic!("Misconversion from Array2 to NumNDArray")
+        }
+    }
 }
 
 
 
 
 
-impl QRFact<f32>{
-    /// Take ownership of matrix `a` and do an in-place QR factorization
-    pub fn new( a : Array2<f32> )->Self{
-        type F=f32;
-        let shape = a.shape();
 
+
+
+fn xgeqrf(m : i32, n : i32, a : &mut NumNDArray,lda : i32, tau : &mut NumNDArray,work : &mut NumNDArray,lwork : i32,info : &mut i32) -> () {
+    use NumNDArray::Float32;
+    use NumNDArray::Float64;
+    use NumNDArray::Complex32;
+    use NumNDArray::Complex64;
+    match (a,tau,work){        
+        (Float32(x),Float32(y),Float32(z)) => unsafe { 
+            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            sgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
+        },
+        (Float64(x),Float64(y),Float64(z)) => unsafe { 
+            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            dgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
+        },
+        (Complex32(x),Complex32(y),Complex32(z)) => unsafe { 
+            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            cgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
+        },
+        (Complex64(x),Complex64(y),Complex64(z)) => unsafe { 
+            let xp = x.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let yp = y.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let zp = z.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            zgeqrf(m,n,xp,lda,yp,zp,lwork,info) 
+        },
+        _ => panic!("Type mismatch in xgeqrf")
+    };
+}
+
+fn xtrtrs(uplo : u8,trans : u8,diag : u8,n : i32,nrhs : i32,a : &mut NumNDArray,lda : i32,b : &mut NumNDArray,ldb : i32,info : &mut i32) -> () {
+    use NumNDArray::Float32;
+    use NumNDArray::Float64;
+    use NumNDArray::Complex32;
+    use NumNDArray::Complex64;
+    let ctrans= if trans==b'T'{b'C'} else {b'N'};
+    match (a,b){
+        (Float32(a),Float32(b)) => unsafe { 
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            strtrs(uplo,trans,diag,n,nrhs,ap,lda,bp,ldb,info) 
+        },
+        (Float64(a),Float64(b)) => unsafe { 
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            dtrtrs(uplo,trans,diag,n,nrhs,ap,lda,bp,ldb,info) 
+        },
+        (Complex32(a),Complex32(b)) => unsafe { 
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            ctrtrs(uplo,ctrans,diag,n,nrhs,ap,lda,bp,ldb,info) 
+        },
+        (Complex64(a),Complex64(b)) => unsafe { 
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let bp = b.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            ztrtrs(uplo,ctrans,diag,n,nrhs,ap,lda,bp,ldb,info) 
+        },
+        _ => panic!("Type mismatch in xtrtrs")
+    }
+}
+
+fn xmqr(side : u8, trans : u8,m : i32,n : i32,k : i32,a : &mut NumNDArray,lda : i32,
+        tau : &mut NumNDArray,c : &mut NumNDArray,ldc : i32,work : &mut NumNDArray,lwork : i32,info : &mut i32)->(){
+    use NumNDArray::Float32;
+    use NumNDArray::Float64;
+    use NumNDArray::Complex32;
+    use NumNDArray::Complex64;
+    let ctrans= if trans==b'T'{b'C'} else {b'N'};
+    match (a,tau,c,work){
+        (Float32(a),Float32(tau),Float32(c),Float32(work)) => unsafe {
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            sormqr(side,trans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
+        },
+        (Float64(a),Float64(tau),Float64(c),Float64(work)) => unsafe {
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            dormqr(side,trans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
+        },
+        (Complex32(a),Complex32(tau),Complex32(c),Complex32(work)) => unsafe {
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            cunmqr(side,ctrans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) 
+        },
+        (Complex64(a),Complex64(tau),Complex64(c),Complex64(work)) => unsafe {
+            let ap = a.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let tp = tau.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let cp = c.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            let wp = work.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
+            zunmqr(side,ctrans,m,n,k,ap,lda,tp,cp,ldc,wp,lwork,info) },
+        _ => panic!("Type mismatch in xmqr")
+    }
+}
+
+/// A simple class wrapping LAPACK's xGEQRF and presenting a 
+/// nicer interface for rust code.
+pub struct QRFact<F>{
+    m : i32,
+    n : i32,
+    qr : NumNDArray,
+    tau : NumNDArray,
+    work : NumNDArray,
+    lwork : i32,
+    why_me : F
+}
+
+
+
+
+
+impl <F>  QRFact<F>
+where
+F : Clone + Zero,
+Array2<F> : From<NumNDArray> + Into<NumNDArray>{
+    /// Take ownership of matrix `a` and do an in-place QR factorization
+    pub fn new<'b>( a : Array2<F> )->Self{
+        check_if_fortran_style(&a).expect("Matrix input to QRFact was not column-major ordered");
+        let shape = a.shape();
         let m = shape[0] as i32;
         let n = shape[1] as i32;
-        check_if_fortran_style(&a).expect("Matrix input to QRFact was not column-major ordered");
-        let mut qr = a;
         let lda = m as i32;
         let ntau = std::cmp::min(m,n) as i32;
-        let mut tau : Vec<F> = vec![0.0;ntau as usize];
         let nb=std::cmp::min(32,n);
-        let lwork = nb * 2 as i32;
-        let mut work : Vec<F> = vec![0.0;lwork as usize];
-        let mut info=0 as i32;
-        unsafe{
-            let qrslice = qr.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            sgeqrf(m,n,qrslice,lda,&mut tau,&mut work,lwork,&mut info);
+        let lwork = nb * n as i32;
+
+        let t : Array2<F> = Array::zeros((ntau as usize,1).f());
+        let w : Array2<F> = Array::zeros((lwork as usize,1).f());
+        {
+            let mut qr : NumNDArray = a.into();
+            let mut tau  : NumNDArray = t.into();
+            let mut work  : NumNDArray = w.into();
+            let mut info=0 as i32;
+            xgeqrf(m,n,&mut qr,lda,&mut tau,&mut work,lwork,&mut info);
+            check_lapack_info(info).expect(&format!("xgeqrf failed with info={}",info)[..]);
+
+            QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork,why_me : F::zero()}
         }
-        check_lapack_info(info).expect(&format!("sgeqrf failed with info={}",info)[..]);
-        QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork}
     }
     /// Solve Rx=b in-place with the array b.
-    pub fn solve_r(&mut self,b : &mut Array2<f32>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
+    pub fn solve_r(&mut self,b : Array2<F>) -> Array2<F> {
+        check_if_fortran_style(&b).expect("Matrix B in RX=B not column-major ordered");
         let n = self.n;
         let nrhs = b.shape()[1] as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
+        let k = std::cmp::min(self.m,self.n);
         {
             let shape = b.shape();
             if shape[0] as i32 != k as i32{
                 panic!(format!("Error: R in RX=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
             }
         }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
         let lda=self.m;
         let ldb={
             let shape = b.shape();
             shape[0]
         } as i32;
 
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0 as i32;
-        unsafe {
-            strtrs(b'U',b'N',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
+        {
+            let mut info = 0 as i32;
+            let mut bb : NumNDArray = b.into();
+            xtrtrs(b'U',b'N',b'N',n,nrhs,&mut self.qr,lda,&mut bb,ldb,&mut info);
+            check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
+            Array2::<F>::from(bb)
         }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
     }
 
     /// Solve R^T x=b in-place with the array b.
-    pub fn solve_rt(&mut self,b : &mut Array2<f32>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
+    pub fn solve_rt(&mut self,b : Array2<F>) -> Array2<F> {
+        check_if_fortran_style(&b).expect("Matrix B in RX=B not column-major ordered");
+        let m = self.m;
         let n = self.n;
         let nrhs = {
             let shape=b.shape();
             shape[1]
         } as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
+        let k = std::cmp::min(m,n);
         {
             let shape = b.shape();
             if shape[0] as i32 != n {
                 panic!(format!("Error: R in R^T X=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
             }
         }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
         let lda=self.m;
         let ldb={
             let shape=b.shape();
             shape[0]
         } as i32;
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0;
-        unsafe {
-            strtrs(b'U',b'T',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
+        {
+            let mut info = 0;
+            let mut bb : NumNDArray = b.into();
+            xtrtrs(b'U',b'T',b'N',n,nrhs,&mut self.qr,lda,&mut bb,ldb,&mut info);
+            check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
+            Array2::<F>::from(bb)
         }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
     }
 
     /// Multiply Q^T * C in-place in C.
-    pub fn mul_left_qt(&mut self,c : &mut Array2<f32>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
+    pub fn mul_left_qt(&mut self,c : Array2<F>) -> Array2<F> {
+        check_if_fortran_style(&c).expect("Matrix C in Q^T * C not column-major ordered");
         {
             let m = self.m;
             let shape=c.shape();
@@ -149,437 +322,42 @@ impl QRFact<f32>{
         }
         let m = self.m as i32;
         let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
-        let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for Q in Q^T * C not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q^T * C not contiguous");
-        let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            sormqr(b'L',b'T',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-    }
-
-    /// Multiply Q * C in-place in C.
-    pub fn mul_left_q(&mut self,c : &mut Array2<f32>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
-        {
-            let m = self.m;
-            let shape=c.shape();
-            if shape[0] as i32 != m {
-                panic!(format!("Error: Q in Q * C has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
-            }
-        }
-        let m = self.m as i32;
-        let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
-        let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for Q in Q * C not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q * C not contiguous");
-        let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            sormqr(b'L',b'N',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-    }
-
-
-}
-
-impl QRFact<f64>{
-    /// Take ownership of matrix `a` and do an in-place QR factorization
-    pub fn new( a : Array2<f64> )->Self{
-        type F=f64;
-        let shape = a.shape();
-
-        let m = shape[0] as i32;
-        let n = shape[1] as i32;
-        check_if_fortran_style(&a).expect("Matrix input to QRFact was not column-major ordered");
-        let mut qr = a;
+        let k = std::cmp::min(m,n) as i32;
         let lda = m as i32;
-        let ntau = std::cmp::min(m,n) as i32;
-        let mut tau : Vec<F> = vec![0.0;ntau as usize];
-        let nb=std::cmp::min(32,n);
-        let lwork = nb * 2 as i32;
-        let mut work : Vec<F> = vec![0.0;lwork as usize];
-        let mut info=0 as i32;
-        unsafe{
-            let qrslice = qr.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            dgeqrf(m,n,qrslice,lda,&mut tau,&mut work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sgeqrf failed with info={}",info)[..]);
-        QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork}
-    }
-    /// Solve Rx=b in-place with the array b.
-    pub fn solve_r(&mut self,b : &mut Array2<f64>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
-        let n = self.n;
-        let nrhs = b.shape()[1] as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
-        {
-            let shape = b.shape();
-            if shape[0] as i32 != k as i32{
-                panic!(format!("Error: R in RX=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
-            }
-        }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let lda=self.m;
-        let ldb={
-            let shape = b.shape();
-            shape[0]
-        } as i32;
-
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0 as i32;
-        unsafe {
-            dtrtrs(b'U',b'N',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-    }
-
-    /// Solve R^T x=b in-place with the array b.
-    pub fn solve_rt(&mut self,b : &mut Array2<f64>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
-        let n = self.n;
-        let nrhs = {
-            let shape=b.shape();
-            shape[1]
-        } as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
-        {
-            let shape = b.shape();
-            if shape[0] as i32 != n {
-                panic!(format!("Error: R in R^T X=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
-            }
-        }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let lda=self.m;
-        let ldb={
-            let shape=b.shape();
-            shape[0]
-        } as i32;
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0;
-        unsafe {
-            dtrtrs(b'U',b'T',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-    }
-
-    /// Multiply Q^T * C in-place in C.
-    pub fn mul_left_qt(&mut self,c : &mut Array2<f64>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
-        {
-            let m = self.m;
-            let shape=c.shape();
-            if shape[0] as i32 != m {
-                panic!(format!("Error: Q in Q^T has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
-            }
-        }
-        let m = self.m as i32;
-        let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
         let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q^T * C not contiguous");
         let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            dormqr(b'L',b'T',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
+        {
+            let mut info = 0 as i32;
+            let mut cc : NumNDArray = c.into();
+            xmqr(b'L',b'T',m,n,k,&mut self.qr,lda,&mut self.tau,&mut cc,ldc,&mut self.work,lwork,&mut info);
+            check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
+            Array2::<F>::from(cc)
         }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
     }
 
     /// Multiply Q * C in-place in C.
-    pub fn mul_left_q(&mut self,c : &mut Array2<f64>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
+    pub fn mul_left_q(&mut self,c :Array2<F>) -> Array2<F> {
+        check_if_fortran_style(&c).expect("Matrix C in Q^T * C not column-major ordered");
         {
             let m = self.m;
             let shape=c.shape();
             if shape[0] as i32 != m {
-                panic!(format!("Error: Q in Q * C has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
+                panic!(format!("Error: Q in Q^T * C has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
             }
         }
         let m = self.m as i32;
         let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
+        let k = std::cmp::min(self.m,self.n) as i32;
+        let lda = self.m as i32;
         let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for Q in Q * C not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q * C not contiguous");
         let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            dormqr(b'L',b'N',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-    }
-}
-
-impl QRFact<C32>{
-    /// Take ownership of matrix `a` and do an in-place QR factorization
-    pub fn new( a : Array2<C32> )->Self{
-        type F=C32;
-        let shape = a.shape();
-
-        let m = shape[0] as i32;
-        let n = shape[1] as i32;
-        check_if_fortran_style(&a).expect("Matrix input to QRFact was not column-major ordered");
-        let mut qr = a;
-        let lda = m as i32;
-        let ntau = std::cmp::min(m,n) as i32;
-        let mut tau : Vec<F> = vec![C32::new(0.0,0.0);ntau as usize];
-        let nb=std::cmp::min(32,n);
-        let lwork = nb * 2 as i32;
-        let mut work : Vec<F> = vec![C32::new(0.0,0.0);lwork as usize];
-        let mut info=0 as i32;
-        unsafe{
-            let qrslice = qr.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            cgeqrf(m,n,qrslice,lda,&mut tau,&mut work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sgeqrf failed with info={}",info)[..]);
-        QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork}
-    }
-    /// Solve Rx=b in-place with the array b.
-    pub fn solve_r(&mut self,b : &mut Array2<C32>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
-        let n = self.n;
-        let nrhs = b.shape()[1] as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
         {
-            let shape = b.shape();
-            if shape[0] as i32 != k as i32{
-                panic!(format!("Error: R in RX=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
-            }
+            let mut info = 0 as i32;
+            let mut cc : NumNDArray = c.into();
+            xmqr(b'L',b'N',m,n,k,&mut self.qr,lda,&mut self.tau,&mut cc,ldc,&mut self.work,lwork,&mut info);
+            check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
+            Array2::<F>::from(cc)
         }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let lda=self.m;
-        let ldb={
-            let shape = b.shape();
-            shape[0]
-        } as i32;
-
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0 as i32;
-        unsafe {
-            ctrtrs(b'U',b'N',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-    }
-
-    /// Solve R^T x=b in-place with the array b.
-    pub fn solve_rt(&mut self,b : &mut Array2<C32>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
-        let n = self.n;
-        let nrhs = {
-            let shape=b.shape();
-            shape[1]
-        } as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
-        {
-            let shape = b.shape();
-            if shape[0] as i32 != n {
-                panic!(format!("Error: R in R^T X=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
-            }
-        }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let lda=self.m;
-        let ldb={
-            let shape=b.shape();
-            shape[0]
-        } as i32;
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0;
-        unsafe {
-            ctrtrs(b'U',b'T',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-    }
-
-    /// Multiply Q^T * C in-place in C.
-    pub fn mul_left_qt(&mut self,c : &mut Array2<C32>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
-        {
-            let m = self.m;
-            let shape=c.shape();
-            if shape[0] as i32 != m {
-                panic!(format!("Error: Q in Q^T has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
-            }
-        }
-        let m = self.m as i32;
-        let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
-        let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q^T * C not contiguous");
-        let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            cunmqr(b'L',b'T',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-    }
-
-    /// Multiply Q * C in-place in C.
-    pub fn mul_left_q(&mut self,c : &mut Array2<C32>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
-        {
-            let m = self.m;
-            let shape=c.shape();
-            if shape[0] as i32 != m {
-                panic!(format!("Error: Q in Q * C has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
-            }
-        }
-        let m = self.m as i32;
-        let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
-        let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for Q in Q * C not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q * C not contiguous");
-        let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            cunmqr(b'L',b'N',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-    }
-}
-
-impl QRFact<C64>{
-    /// Take ownership of matrix `a` and do an in-place QR factorization
-    pub fn new( a : Array2<C64> )->Self{
-        type F=C64;
-        let shape = a.shape();
-
-        let m = shape[0] as i32;
-        let n = shape[1] as i32;
-        check_if_fortran_style(&a).expect("Matrix input to QRFact was not column-major ordered");
-        let mut qr = a;
-        let lda = m as i32;
-        let ntau = std::cmp::min(m,n) as i32;
-        let mut tau : Vec<F> = vec![C64::new(0.0,0.0);ntau as usize];
-        let nb=std::cmp::min(32,n);
-        let lwork = nb * 2 as i32;
-        let mut work : Vec<F> = vec![C64::new(0.0,0.0);lwork as usize];
-        let mut info=0 as i32;
-        unsafe{
-            let qrslice = qr.as_slice_memory_order_mut().expect("Memory not contiguous in input matrix");
-            zgeqrf(m,n,qrslice,lda,&mut tau,&mut work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sgeqrf failed with info={}",info)[..]);
-        QRFact { m : m as i32, n : n as i32, qr : qr, tau : tau, work : work, lwork : lwork}
-    }
-    /// Solve Rx=b in-place with the array b.
-    pub fn solve_r(&mut self,b : &mut Array2<C64>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
-        let n = self.n;
-        let nrhs = b.shape()[1] as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
-        {
-            let shape = b.shape();
-            if shape[0] as i32 != k as i32{
-                panic!(format!("Error: R in RX=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
-            }
-        }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let lda=self.m;
-        let ldb={
-            let shape = b.shape();
-            shape[0]
-        } as i32;
-
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0 as i32;
-        unsafe {
-            ztrtrs(b'U',b'N',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-    }
-
-    /// Solve R^T x=b in-place with the array b.
-    pub fn solve_rt(&mut self,b : &mut Array2<C64>) -> () {
-        check_if_fortran_style(b).expect("Matrix B in RX=B not column-major ordered");
-        let n = self.n;
-        let nrhs = {
-            let shape=b.shape();
-            shape[1]
-        } as i32;
-        let k = std::cmp::min(self.qr.shape()[0],self.qr.shape()[0]);
-        {
-            let shape = b.shape();
-            if shape[0] as i32 != n {
-                panic!(format!("Error: R in R^T X=B has shape ({},{}) but B has shape ({},{})",k,n,shape[0],shape[1]));
-            }
-        }
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let lda=self.m;
-        let ldb={
-            let shape=b.shape();
-            shape[0]
-        } as i32;
-        let bslice=b.as_slice_memory_order_mut().expect("Memory for B in RX=B not contiguous");
-        let mut info = 0;
-        unsafe {
-            ztrtrs(b'U',b'T',b'N',n,nrhs,qrslice,lda,bslice,ldb,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("strtrs failed with info={}",info)[..]);
-    }
-
-    /// Multiply Q^T * C in-place in C.
-    pub fn mul_left_qt(&mut self,c : &mut Array2<C64>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
-        {
-            let m = self.m;
-            let shape=c.shape();
-            if shape[0] as i32 != m {
-                panic!(format!("Error: Q in Q^T has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
-            }
-        }
-        let m = self.m as i32;
-        let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
-        let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for R in RX=B not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q^T * C not contiguous");
-        let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            zunmqr(b'L',b'T',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
-    }
-
-    /// Multiply Q * C in-place in C.
-    pub fn mul_left_q(&mut self,c : &mut Array2<C64>) -> () {
-        check_if_fortran_style(c).expect("Matrix C in Q^T * C not column-major ordered");
-        {
-            let m = self.m;
-            let shape=c.shape();
-            if shape[0] as i32 != m {
-                panic!(format!("Error: Q in Q * C has shape ({},{}) but C has shape ({},{})",m,m,shape[0],shape[1]));
-            }
-        }
-        let m = self.m as i32;
-        let n = c.shape()[1] as i32;
-        let k = self.tau.len() as i32;
-        let lda = self.qr.shape()[0] as i32;
-        let ldc = c.shape()[0] as i32;
-        let qrslice=self.qr.as_slice_memory_order_mut().expect("Memory for Q in Q * C not contiguous");
-        let cslice=c.as_slice_memory_order_mut().expect("Memory for C in Q * C not contiguous");
-        let lwork=self.lwork;
-        let mut info = 0 as i32;
-        unsafe{ 
-            zunmqr(b'L',b'N',m,n,k,qrslice,lda,&mut self.tau,cslice,ldc,&mut self.work,lwork,&mut info);
-        }
-        check_lapack_info(info).expect(&format!("sormqr failed with info={}",info)[..]);
     }
 }
 
@@ -614,8 +392,8 @@ mod tests {
             }
         }
         let mut qr = QRFact::<F>::new(a.clone());
-        qr.mul_left_qt(&mut a);
-        qr.solve_r(&mut a);
+        a=qr.mul_left_qt(a);
+        a=qr.solve_r(a);
         //Now A should be the identity
         for ((i,j),v) in a.indexed_iter(){
             if i==j{
@@ -652,8 +430,8 @@ mod tests {
 
 
         let mut qr = QRFact::<F>::new(at);
-        qr.solve_rt(&mut a);
-        qr.mul_left_q(&mut a);
+        a=qr.solve_rt(a);
+        a=qr.mul_left_q(a);
         //Now A should be the identity
         for ((i,j),v) in a.indexed_iter(){
             if i==j{
@@ -690,8 +468,8 @@ mod tests {
             }
         }
         let mut qr = QRFact::<F>::new(a.clone());
-        qr.mul_left_q(&mut id);
-        qr.mul_left_qt(&mut id);
+        id=qr.mul_left_q(id);
+        id=qr.mul_left_qt(id);
         for ((i,j),v) in id.indexed_iter(){
             if i==j{
                 print!("\nv-one  = {}\n",(v-1.0).abs());
@@ -717,7 +495,7 @@ mod tests {
         let mut qr = QRFact::<f32>::new(a);
         //This is incorrect shape for b, it should fail.
         let mut b : Array2<f32>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
-        qr.solve_r(&mut b);
+        qr.solve_r(b);
     }
 
     #[test]
@@ -727,7 +505,7 @@ mod tests {
         let mut qr = QRFact::<f32>::new(a);
         //This is incorrect shape for b, this should fail.
         let mut b : Array2<f32>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
-        qr.mul_left_qt(&mut b);
+        qr.mul_left_qt(b);
     }
 
 
@@ -755,8 +533,8 @@ mod tests {
             }
         }
         let mut qr = QRFact::<F>::new(a.clone());
-        qr.mul_left_qt(&mut a);
-        qr.solve_r(&mut a);
+        a=qr.mul_left_qt(a);
+        a=qr.solve_r(a);
         //Now A should be the identity
         for ((i,j),v) in a.indexed_iter(){
             if i==j{
@@ -793,8 +571,8 @@ mod tests {
 
 
         let mut qr = QRFact::<F>::new(at);
-        qr.solve_rt(&mut a);
-        qr.mul_left_q(&mut a);
+        a=qr.solve_rt(a);
+        a=qr.mul_left_q(a);
         //Now A should be the identity
         for ((i,j),v) in a.indexed_iter(){
             if i==j{
@@ -831,8 +609,9 @@ mod tests {
             }
         }
         let mut qr = QRFact::<F>::new(a.clone());
-        qr.mul_left_q(&mut id);
-        qr.mul_left_qt(&mut id);
+        id=qr.mul_left_q(id);
+        id=qr.mul_left_qt(id);
+
         for ((i,j),v) in id.indexed_iter(){
             if i==j{
                 print!("\nv-one  = {}\n",(v-1.0).abs());
@@ -858,7 +637,7 @@ mod tests {
         let mut qr = QRFact::<f64>::new(a);
         //This is incorrect shape for b, it should fail.
         let mut b : Array2<f64>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
-        qr.solve_r(&mut b);
+        b=qr.solve_r(b);
     }
 
     #[test]
@@ -868,7 +647,7 @@ mod tests {
         let mut qr = QRFact::<f64>::new(a);
         //This is incorrect shape for b, this should fail.
         let mut b : Array2<f64>  = Array::from_shape_vec((2,3),vec![1.0,2.0,3.0,4.0,5.0,6.0]).unwrap();
-        qr.mul_left_qt(&mut b);
+        b=qr.mul_left_qt(b);
     }
 
 

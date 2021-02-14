@@ -6,7 +6,8 @@ use lapack::{sgeqrf,dgeqrf,cgeqrf,zgeqrf};
 use lapack::{strtrs,dtrtrs,ctrtrs,ztrtrs};
 // LAPACK householder reflector routines
 use lapack::{sormqr,dormqr,cunmqr,zunmqr};
-use num_traits::{Float,Zero};
+use num_traits::{Num,Zero};
+use num_traits::float::Float;
 
 
 use lapack::c32;
@@ -370,7 +371,44 @@ mod tests {
     use super::*;
     use ndarray::prelude::*;
     use num_traits::Float;
+    use num::NumCast;
 
+
+
+    fn test_qr_correct_normal<F>() -> () 
+    where 
+    F : Float + NumCast + std::fmt::Display,
+    Array2<F> : From<NumNDArray> + Into<NumNDArray>{
+        let eps=F::epsilon();
+        let scaling : F = NumCast::from(50 as i64).unwrap();
+        let tol=scaling*eps;
+        let m=50;
+        let mut a : Array2<F>  = Array::zeros((m,m).f());
+        for ((i,j),v) in a.indexed_iter_mut(){
+            if i != j{
+                let ifl : F = NumCast::from(i).unwrap();
+                let jfl : F = NumCast::from(j).unwrap();
+                let alpha : F= NumCast::from(3).unwrap();
+                *v=(ifl+alpha*jfl).sin();
+            }
+            else{
+                *v=NumCast::from(15).unwrap();
+            }
+        }
+        let mut qr = QRFact::<F>::new(a.clone());
+        a=qr.mul_left_qt(a);
+        a=qr.solve_r(a);
+        //Now A should be the identity
+        for ((i,j),v) in a.indexed_iter(){
+            if i==j{
+                print!("\nv-one  = {}\n",(*v-F::one()).abs());
+                assert!( (*v-F::one()).abs()<tol );
+            }
+            else{
+                assert!( v.abs()<tol );
+            }
+        }
+    }
 
 
 

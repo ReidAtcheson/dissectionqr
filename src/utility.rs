@@ -6,12 +6,9 @@ use lapack::{sgeqrf,dgeqrf,cgeqrf,zgeqrf};
 use lapack::{strtrs,dtrtrs,ctrtrs,ztrtrs};
 // LAPACK householder reflector routines
 use lapack::{sormqr,dormqr,cunmqr,zunmqr};
-use num_traits::{Num,Zero};
-use num_traits::float::Float;
-//use num_complex::Complex;
 
 
-use num_traits::{Float,Zero};
+use num_traits::{Num,Float,Zero};
 use num_complex::Complex;
 
 

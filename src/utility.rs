@@ -6,12 +6,12 @@ use lapack::{sgeqrf,dgeqrf,cgeqrf,zgeqrf};
 use lapack::{strtrs,dtrtrs,ctrtrs,ztrtrs};
 // LAPACK householder reflector routines
 use lapack::{sormqr,dormqr,cunmqr,zunmqr};
-use num_traits::{Float,Zero};
+
+
+use num_traits::{Num,Float,Zero};
 use num_complex::Complex;
 
 
-//use lapack::c32;
-//use lapack::c64;
 type C32=Complex<f32>;
 type C64=Complex<f64>;
 
@@ -370,26 +370,34 @@ Array2<F> : From<NumNDArray> + Into<NumNDArray>{
 mod tests {
     use super::*;
     use ndarray::prelude::*;
+    use num_traits::One;
+    use num_traits::Num;
     use num_traits::Float;
+    use num::NumCast;
+    use num_complex::Complex;
+    use num_complex::Complex32;
+    use num_complex::Complex64;
 
 
 
-
-    #[test]
-    fn test_qr_correct_normal_f32(){
-        type F=f32;
+    fn test_qr_correct_normal<F>() -> () 
+    where 
+    F : Float + NumCast + std::fmt::Display,
+    Array2<F> : From<NumNDArray> + Into<NumNDArray>{
         let eps=F::epsilon();
-        let tol=50.0*eps;
+        let scaling : F = NumCast::from(50 as i64).unwrap();
+        let tol=scaling*eps;
         let m=50;
         let mut a : Array2<F>  = Array::zeros((m,m).f());
         for ((i,j),v) in a.indexed_iter_mut(){
             if i != j{
-                let ifl = i as F;
-                let jfl = j as F;
-                *v=(ifl+3.0*jfl).sin();
+                let ifl : F = NumCast::from(i).unwrap();
+                let jfl : F = NumCast::from(j).unwrap();
+                let alpha : F= NumCast::from(3).unwrap();
+                *v=(ifl+alpha*jfl).sin();
             }
             else{
-                *v=15.0;
+                *v=NumCast::from(15).unwrap();
             }
         }
         let mut qr = QRFact::<F>::new(a.clone());
@@ -398,14 +406,71 @@ mod tests {
         //Now A should be the identity
         for ((i,j),v) in a.indexed_iter(){
             if i==j{
-                print!("\nv-one  = {}\n",(v-1.0).abs());
-                assert!( (v-1.0).abs()<tol );
+                print!("\nv-one  = {}\n",(*v-F::one()).abs());
+                assert!( (*v-F::one()).abs()<tol );
             }
             else{
                 assert!( v.abs()<tol );
             }
         }
     }
+
+    fn test_qr_correct_normal_complex<F>() -> () 
+    where 
+    F : Num + NumCast + Float + Clone + std::fmt::Display,
+    Complex<F> : Num + NumCast + std::fmt::Display,
+    Array2<Complex<F>> : From<NumNDArray> + Into<NumNDArray>{
+        let eps=F::epsilon();
+        let scaling : F = NumCast::from(50 as i64).unwrap();
+        let tol=scaling*eps;
+        let m=50;
+        let mut a : Array2<Complex<F>>  = Array::zeros((m,m).f());
+        for ((i,j),v) in a.indexed_iter_mut(){
+            if i != j{
+                let ifl : F = NumCast::from(i).unwrap();
+                let jfl : F = NumCast::from(j).unwrap();
+                let alpha : F= NumCast::from(3).unwrap();
+                *v=Complex::<F>::new((ifl+alpha*jfl).sin(),(alpha*ifl+jfl).cos());
+            }
+            else{
+                *v=Complex::<F>::new(NumCast::from(15).unwrap(),NumCast::from(-15).unwrap());
+            }
+        }
+        let mut qr = QRFact::<Complex<F>>::new(a.clone());
+        a=qr.mul_left_qt(a);
+        a=qr.solve_r(a);
+        //Now A should be the identity
+        for ((i,j),v) in a.indexed_iter(){
+            if i==j{
+                print!("\nv-one  = {}\n",(*v-Complex::<F>::one()).norm());
+                assert!( (*v-Complex::<F>::one()).norm()<tol );
+            }
+            else{
+                assert!( v.norm()<tol );
+            }
+        }
+    }
+
+
+
+
+    #[test]
+    fn test_qr_correct_normal_f32(){
+        test_qr_correct_normal::<f32>();
+    }
+    #[test]
+    fn test_qr_correct_normal_f64(){
+        test_qr_correct_normal::<f64>();
+    }
+    #[test]
+    fn test_qr_correct_normal_c32(){
+        test_qr_correct_normal_complex::<f32>();
+    }
+
+
+
+
+
     #[test]
     fn test_qr_correct_transpose_f32(){
         type F=f32;
@@ -516,37 +581,6 @@ mod tests {
      *
      */
 
-    #[test]
-    fn test_qr_correct_normal_f64(){
-        type F=f64;
-        let eps=F::epsilon();
-        let tol=50.0*eps;
-        let m=50;
-        let mut a : Array2<F>  = Array::zeros((m,m).f());
-        for ((i,j),v) in a.indexed_iter_mut(){
-            if i != j{
-                let ifl = i as F;
-                let jfl = j as F;
-                *v=(ifl+3.0*jfl).sin();
-            }
-            else{
-                *v=15.0;
-            }
-        }
-        let mut qr = QRFact::<F>::new(a.clone());
-        a=qr.mul_left_qt(a);
-        a=qr.solve_r(a);
-        //Now A should be the identity
-        for ((i,j),v) in a.indexed_iter(){
-            if i==j{
-                print!("\nv-one  = {}\n",(v-1.0).abs());
-                assert!( (v-1.0).abs()<tol );
-            }
-            else{
-                assert!( v.abs()<tol );
-            }
-        }
-    }
     #[test]
     fn test_qr_correct_transpose_f64(){
         type F=f64;

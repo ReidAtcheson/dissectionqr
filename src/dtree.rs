@@ -1,4 +1,4 @@
-use crate::sparse::*;
+use crate::sparse::{NodeSet,Graph};
 
 
 
@@ -13,6 +13,10 @@ pub struct DissectionNode<S : NodeSet>{
     pub id : usize,
     ///A vector of tree nodes representing rows for this node
     pub rows : Vec<usize>,
+    ///A vector of tree nodes representing lower triangular (including diagonal) blocks
+    pub lrows : Vec<usize>,
+    ///A vector of tree nodes representing upper triangular (not including diagonal) blocks
+    pub urows : Vec<usize>,
     ///The children of this node, if any
     pub children : Option< (usize,usize) >,
     ///The parent of this node, if any
@@ -34,7 +38,7 @@ pub struct DissectionTree<S : NodeSet>{
 /// Builds basic nested dissection tree without level information
 fn nested_dissection_basic<S : NodeSet + Clone ,G : Graph<S>>(s : &S, g : &G,maxnodes : usize,pathlen : usize) -> DissectionTree<S> {
 
-    let root = DissectionNode { col : s.clone(), level : 0, id : 0, rows : vec![], children : None, parent : None };
+    let root = DissectionNode { col : s.clone(), level : 0, id : 0, rows : vec![], lrows : vec![], urows : vec![], children : None, parent : None };
     let mut dtree = DissectionTree {root : 0, arena : vec![root], levels : vec![] };
     let mut stack : Vec<usize> = vec![0];
 
@@ -56,8 +60,8 @@ fn nested_dissection_basic<S : NodeSet + Clone ,G : Graph<S>>(s : &S, g : &G,max
             //Current tree node gets children nodes
             dtree.arena[j].children = Some( (cid1,cid2) );
             //Create children nodes and place into arena
-            let child1 = DissectionNode{col : p1, level : level+1, id : cid1, rows : vec![], children : None, parent : Some(id)};
-            let child2 = DissectionNode{col : p2, level : level+1, id : cid2, rows : vec![], children : None, parent : Some(id)};
+            let child1 = DissectionNode{col : p1, level : level+1, id : cid1, rows : vec![], lrows : vec![], urows : vec![], children : None, parent : Some(id)};
+            let child2 = DissectionNode{col : p2, level : level+1, id : cid2, rows : vec![], lrows : vec![], urows : vec![],  children : None, parent : Some(id)};
             dtree.arena.push(child1);
             dtree.arena.push(child2);
 
@@ -124,6 +128,31 @@ fn upper_triangular_blocks<S : NodeSet>(dtree : &mut DissectionTree<S>) -> () {
     }
 }
 
+/// Separate upper and lower triangular blocks
+fn separate_upper_lower<S : NodeSet>(dtree : &mut DissectionTree<S>) -> () {
+    for t in dtree.arena.iter_mut(){
+        for r in t.rows.iter_mut(){
+            let tid=t.id;
+            //Lower triangular matrix
+            let mut lrows = &mut t.lrows;
+            //Upper triangular matrix
+            let mut urows = &mut t.urows;
+            if tid>=*r{
+                lrows.push(*r);
+            }
+            else{
+                urows.push(*r);
+            }
+        }
+    }
+
+    //Make sure `lrows` and `urows` are sorted
+    for t in dtree.arena.iter_mut(){
+        t.lrows.sort_unstable();
+        t.urows.sort_unstable();
+    }
+}
+
 
 
 pub fn nested_dissection<S : NodeSet + Clone , G : Graph<S> + Clone>(s : &S,g : &G,maxnodes : usize,pathlen : usize) -> DissectionTree<S> {
@@ -131,8 +160,11 @@ pub fn nested_dissection<S : NodeSet + Clone , G : Graph<S> + Clone>(s : &S,g : 
     build_levels(&mut dtree);
     lower_triangular_blocks(&mut dtree);
     upper_triangular_blocks(&mut dtree);
+    separate_upper_lower(&mut dtree);
     dtree
 }
+
+
 
 pub fn graphviz<S : NodeSet>(dtree : &DissectionTree<S>) -> (){
     let mut stack : Vec<usize> = vec![dtree.root];

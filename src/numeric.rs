@@ -15,9 +15,9 @@ use num_traits::{Float,Zero};
 
 pub struct NumericFactorization<F, S : NodeSet> {
     dtree : DissectionTree<S>,
-    data : Vec<BTreeMap<usize,Array2<F>>>,
-    qrs  : Vec<QRFact<F>>,
-    rus  : Vec<Array2<F>>
+    data : Vec<BTreeMap<usize,Option<Array2<F>>>>,
+    qrs  : Vec<Option<QRFact<F>>>,
+    rus  : Vec<Option<Array2<F>>>
 }
 
 /// Assembles the matrix represented by `op` into numeric factorization datastructure
@@ -25,27 +25,39 @@ pub struct NumericFactorization<F, S : NodeSet> {
 fn assemble<F : Clone, S : NodeSet, G : Graph<S>, M : SparseMatrix<F,S,G>>(dtree : DissectionTree<S>,op : M ) -> NumericFactorization<F,S> {
 
     let nblocks=dtree.levels.iter().map(|x| x.iter().map(|y| *y).max().unwrap()).max().unwrap();
-    let mut data : Vec<BTreeMap<usize,Array2<F>>> = vec![ BTreeMap::<usize,Array2<F>>::new() ; nblocks ];
+    let mut data : Vec<BTreeMap<usize,Option<Array2<F>>>> = vec![ BTreeMap::<usize,Option<Array2<F>>>::new() ; nblocks ];
     for level in dtree.levels.iter(){
         for cid in level.iter(){
             for rid in dtree.arena[*cid].rows.iter(){
                 let row=&dtree.arena[*rid].col;
                 let col=&dtree.arena[*cid].col;
-                data[*cid].insert(*rid,op.assemble(row,col));
+                data[*cid].insert(*rid,Some(op.assemble(row,col)));
             }
         }
     }
-    NumericFactorization { dtree : dtree,data : data, qrs : vec![], rus : vec![] }
+    let qrs : Vec<Option<QRFact<F>>> = (0..nblocks).map(|x| None).collect();
+    let rus : Vec<Option<Array2<F>>> = (0..nblocks).map(|x| None).collect(); 
+    NumericFactorization { dtree : dtree,data : data, qrs : qrs, rus : rus }
 }
 
-fn gather<F : Lapack<F> + Clone + Zero >(rids : &Vec<usize>,rows : &BTreeMap<usize,Array2<F>>) -> Array2<F>{
+fn gather<F : Lapack<F> + Clone + Zero >(rids : &Vec<usize>,rows : &BTreeMap<usize,Option<Array2<F>>>) -> Array2<F>{
 
-    let ncols=rows.get(&rids[0]).unwrap().shape()[1];
-    let nrows=rids.iter().map(|x| rows.get(x).unwrap().shape()[0] ).fold(0,|acc,x| acc+x);
+    let ncols=rows.get(&rids[0]).unwrap().as_ref().unwrap().shape()[1];
+    let nrows=rids.iter().map(|x| rows.get(x).unwrap().as_ref().unwrap().shape()[0] ).fold(0,|acc,x| acc+x);
     let m=50;
     let a : Array2<F> = Array::zeros((m,m).f());
+    panic!("Gather not implemented yet");
     a
 }
+fn scatter<F : Lapack<F> + Clone + Zero >(rids : &Vec<usize>,rows : &mut BTreeMap<usize,Option<Array2<F>>>,stacked : &Array2<F> ) ->(){
+    panic!("Scatter not implemented yet");
+}
+
+
+
+
+
+
 
 /// Performs numeric factorization
 /// This proceeds in the simplest fashion:
@@ -64,18 +76,22 @@ fn factorize<F : Lapack<F> + Clone + Zero, S : NodeSet>(fact : &mut NumericFacto
             //Stack together all the assembled submatrices
             //in lower triangular part of overall matrix
             //then QR factorize the result
-            let rids = {
-                let mut rids = Vec::<usize>::new();
-                for r in arena[*cid].rows.iter(){
-                    if r>=cid{
-                        rids.push(*r);
-                    }
-                }
-                rids
-            };
-            let rows = &fact.data[*cid];
-            let stacked = gather(&rids,&rows);
-            let qr = QRFact::<F>::new(stacked);
+            let n = &fact.dtree.arena[*cid];
+            let data = &fact.data[*cid];
+            let stacked = gather(&n.lrows,&data);
+            let mut qr = QRFact::<F>::new(stacked);
+            //Now iterate up the parents and apply Q^T until top node 
+            let mut parent = n.parent;
+            while let Some(p) = parent{
+                let pn = &fact.dtree.arena[p];
+                let mut pdata = &fact.data[p];
+                let mut pstacked = gather(&n.lrows,&pdata);
+                pstacked=qr.mul_left_qt(pstacked);
+                scatter(&n.lrows,&mut pdata,&pstacked);
+
+                parent=pn.parent;
+            }
+            fact.qrs[*cid]=Some(qr);
         }
     }
 }

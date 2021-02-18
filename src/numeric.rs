@@ -84,10 +84,10 @@ fn factorize<F : Lapack<F> + Clone + Zero, S : NodeSet>(fact : &mut NumericFacto
             let mut parent = n.parent;
             while let Some(p) = parent{
                 let pn = &fact.dtree.arena[p];
-                let mut pdata = &fact.data[p];
+                let pdata = &fact.data[p];
                 let mut pstacked = gather(&n.lrows,&pdata);
                 pstacked=qr.mul_left_qt(pstacked);
-                scatter(&n.lrows,&mut pdata,&pstacked);
+                scatter(&n.lrows,&mut fact.data[p],&pstacked);
 
                 parent=pn.parent;
             }

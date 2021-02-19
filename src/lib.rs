@@ -19,3 +19,4 @@ pub mod grid;
 pub mod dtree;
 pub mod numeric;
 pub mod utility;
+pub mod simplestencil;

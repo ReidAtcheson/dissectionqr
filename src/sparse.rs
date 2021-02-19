@@ -58,7 +58,6 @@ pub trait SparseMatrix<F, S : NodeSet, G : Graph<S>>{
 
     fn eval(&self,x : &Array2<F>,y : &mut Array2<F>) -> ();
 
-
 }
 
 
